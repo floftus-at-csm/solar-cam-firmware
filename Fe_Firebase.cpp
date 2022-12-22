@@ -63,35 +63,55 @@ void getArrayFromFirestore (FirebaseJson startingJson, String pathToArray) {
   // String outputArray[arr.size()];
   Serial.print("The size of the array is: ");
   Serial.println(arr.size());
-  Serial.println("the JSON array is: ");
 
   Serial.println("the array data is: ");
   FirebaseJsonData tempJson;
-  arr.get(tempJson, "/[0]/stringValue");
+
+  arr.get(tempJson, "/[0]/integerValue");
+  Serial.print("the brightness is: ");
+  Serial.println(tempJson.to<int>());
   fromWebSettings.brightness = tempJson.to<int>();
   tempJson.clear();
-  // FirebaseJsonData tempJson;
-  arr.get(tempJson, "/[1]/stringValue");  
+  
+  arr.get(tempJson, "/[1]/integerValue");  
+  Serial.print("the contrast is: ");
+  Serial.println(tempJson.to<int>());
   fromWebSettings.contrast = tempJson.to<int>();
   tempJson.clear();
-  // FirebaseJsonData tempJson;
-  arr.get(tempJson, "/[2]/stringValue");
+  
+  arr.get(tempJson, "/[2]/integerValue");
+  Serial.print("the saturation is: ");
+  Serial.println(tempJson.to<int>());
   fromWebSettings.saturation = tempJson.to<int>();
   tempJson.clear();
-    // FirebaseJsonData tempJson;
-  arr.get(tempJson, "/[3]/stringValue");
+
+  arr.get(tempJson, "/[3]/integerValue");
+  Serial.print("the autoExposureControl is: ");
+  Serial.println(tempJson.to<int>());
   fromWebSettings.autoExposureControl = tempJson.to<int>();  // 0 - 1600
   tempJson.clear();
-    // FirebaseJsonData tempJson;
-  arr.get(tempJson, "/[4]/stringValue");
+  
+  arr.get(tempJson, "/[4]/integerValue");
+  Serial.print("the white balance mode is: ");
+  Serial.println(tempJson.to<int>());
+  fromWebSettings.whiteBalance = tempJson.to<int>();
+  tempJson.clear();
+
+  arr.get(tempJson,"/[5]/stringValue");
+  Serial.print("the imaging mode is: ");
+  Serial.println(tempJson.to<String>());
   fromWebSettings.mode = tempJson.to<String>();
   tempJson.clear();
-    // FirebaseJsonData tempJson;
-  arr.get(tempJson, "/[5]/stringValue");
+
+  arr.get(tempJson, "/[6]/integerValue");
+  Serial.print("the number of photos is: ");
+  Serial.println(tempJson.to<int>());
   fromWebSettings.numPhotos = tempJson.to<int>();
   tempJson.clear();
-    // FirebaseJsonData tempJson;
-  arr.get(tempJson, "/[6]/stringValue");
+
+  arr.get(tempJson, "/[7]/integerValue");
+    Serial.print("the number of cameras is: ");
+  Serial.println(tempJson.to<int>());
   fromWebSettings.numCamera = tempJson.to<int>();
   tempJson.clear();
 
@@ -120,47 +140,25 @@ int checkIntVal(String fieldVal){
 void writeVal(String fieldPath, int newValue){
   Serial.println("writing value");
   if(Firebase.ready()){
-      // The dyamic array of write object fb_esp_firestore_document_write_t.
-      std::vector<struct fb_esp_firestore_document_write_t> writes;
+    // v2
+    // currently this is completely reseting the document - rather than just updating one value
+    // The dyamic array of write object fb_esp_firestore_document_write_t.
+    std::vector<struct fb_esp_firestore_document_write_t> writes;
+    struct fb_esp_firestore_document_write_t update_write;
+    update_write.type = fb_esp_firestore_document_write_type_transform; // fb_esp_firestore_document_write_type_update, fb_esp_firestore_document_write_type_transform
+    FirebaseJson content;
+    String documentPath = "Fe-cam1/settings";
+    String combinedFieldPath = "fields/" + fieldPath + "/integerValue";
+    content.set(combinedFieldPath, newValue);
 
-      // A write object that will be written to the document.
-      struct fb_esp_firestore_document_write_t transform_write;
-
-      transform_write.type = fb_esp_firestore_document_write_type_transform;
-      // Set the document path of document to write (transform)
-      transform_write.document_transform.transform_document_path = "Fe-cam1/settings";
-
-      // Set a transformation of a field of the document.
-      struct fb_esp_firestore_document_write_field_transforms_t field_transforms;
-      // Set field path to write.
-      field_transforms.fieldPath = "read";
-      // Set the transformation type.
-      // fb_esp_firestore_transform_type_set_to_server_value,
-      // fb_esp_firestore_transform_type_increment,
-      // fb_esp_firestore_transform_type_maaximum,
-      // fb_esp_firestore_transform_type_minimum,
-      // fb_esp_firestore_transform_type_append_missing_elements,
-      // fb_esp_firestore_transform_type_remove_all_from_array
-      field_transforms.transform_type = fb_esp_firestore_transform_type_set_to_server_value;
-      
-      // Set the transformation content, server value for this case.
-      // See https://firebase.google.com/docs/firestore/reference/rest/v1/Write#servervalue
-      field_transforms.transform_content = 0; // set timestamp to "test_collection/test_document/server_time"
-
-      // Add a field transformation object to a write object.
-      transform_write.document_transform.field_transforms.push_back(field_transforms);
-
-      // Add a write object to a write array.
-      writes.push_back(transform_write);
-
-      if (Firebase.Firestore.commitDocument(&fbdo, FIREBASE_PROJECT_ID, "" /* databaseId can be (default) or empty */, writes /* dynamic array of fb_esp_firestore_document_write_t */, "" /* transaction */))
+    // if (Firebase.Firestore.commitDocument(&fbdo, FIREBASE_PROJECT_ID, "" /* databaseId can be (default) or empty */, writes /* dynamic array of fb_esp_firestore_document_write_t */, "" /* transaction */))
+    taskCompleted = false;
+    if (Firebase.Firestore.patchDocument(&fbdo, FIREBASE_PROJECT_ID, "" /* databaseId can be (default) or empty */, documentPath.c_str(), content.raw(), fieldPath /* updateMask */)) 
           Serial.printf("ok\n%s\n\n", fbdo.payload().c_str());
-      else
+    else
           Serial.println(fbdo.errorReason()); 
   }
 }
-
-
 
 void uploadFromSPIFFS(String FILE_PHOTO) {
   if (Firebase.ready() && !taskCompleted) {

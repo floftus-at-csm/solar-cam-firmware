@@ -47,20 +47,21 @@ void capturePhotoSaveSpiffs(String FILE_PHOTO) {
       return;
     }
     // CHANGE THIS TO A LOOP - set loop val in web app
-    delay(750);
-    esp_camera_fb_return(fb);
-    delay(750);
-    fb = NULL;
-    delay(750);
-    fb = esp_camera_fb_get();
-    delay(750);
-    esp_camera_fb_return(fb);
-    delay(750);
-    fb = NULL;
-    delay(750);
-    fb = esp_camera_fb_get();
+    delay(1000);
+    // esp_camera_fb_return(fb);
+    // delay(1000);
+    // fb = NULL;
+    // delay(1000);
+    // fb = esp_camera_fb_get();
+    // delay(1000);
+    // esp_camera_fb_return(fb);
+    // delay(1000);
+    // fb = NULL;
+    // delay(750);
+    // fb = esp_camera_fb_get();
     // Photo file name
     Serial.printf("Picture file name: %s\n", FILE_PHOTO);
+    SPIFFS.remove(FILE_PHOTO);
     File file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);
     // Insert the data in the photo file
     if (!file) {
@@ -113,23 +114,23 @@ void initCamera() {
   config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
+  // config.xclk_freq_hz = 20000000;
+  config.xclk_freq_hz = 16500000; 
   config.pixel_format = PIXFORMAT_JPEG;
 
   if (psramFound()) {
+    Serial.println("psram found");
     config.frame_size = FRAMESIZE_UXGA;
-    config.jpeg_quality = 12;  //0-63 lower number means higher quality - it was at 12
-    config.fb_count = 2;
+    config.jpeg_quality = 3;  //0-63 lower number means higher quality - it was at 12
+    config.fb_count = 3;
   } else {
     config.frame_size = FRAMESIZE_SVGA;
     config.jpeg_quality = 2;
     config.fb_count = 1;
-    // config.frame_size = FRAMESIZE_CIF;
-    //   config.jpeg_quality = 2;  //0-63 lower number means higher quality - it was at 12
-    //   config.fb_count = 1;
   }
   // Camera init
   esp_err_t err = esp_camera_init(&config);
+  ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
   if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
     ESP.restart();
@@ -146,17 +147,18 @@ void adjustSettings(Fe_Firebase::settingsInput currentSettings) {
   sensor_t* s = esp_camera_sensor_get();
 
   s->set_brightness(s, currentSettings.brightness);  // -2 to 2
+  // s->set_brightness(s, 2);  // -2 to 2
   s->set_contrast(s, currentSettings.contrast);                    // -2 to 2
   s->set_saturation(s, currentSettings.saturation);                  // -2 to 2
   s->set_special_effect(s, 0);              // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
   s->set_whitebal(s, 1);                    // 0 = disable , 1 = enable
   s->set_awb_gain(s, 1);                    // 0 = disable , 1 = enable
-  s->set_wb_mode(s, 0);                     // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
-  s->set_exposure_ctrl(s, 1);               // 0 = disable , 1 = enable
+  s->set_wb_mode(s, currentSettings.whiteBalance);                     // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
+  s->set_exposure_ctrl(s, 0);               // 0 = disable , 1 = enable
   s->set_aec2(s, 0);                        // 0 = disable , 1 = enable
   s->set_ae_level(s, 0);                    // -2 to 2
   s->set_aec_value(s, currentSettings.autoExposureControl);                 // 0 to 1200
-  s->set_gain_ctrl(s, 1);                   // 0 = disable , 1 = enable
+  s->set_gain_ctrl(s, 0);                   // 0 = disable , 1 = enable
   s->set_agc_gain(s, 0);                    // 0 to 30
   s->set_gainceiling(s, (gainceiling_t)0);  // 0 to 6
   s->set_bpc(s, 0);                         // 0 = disable , 1 = enable
@@ -167,7 +169,10 @@ void adjustSettings(Fe_Firebase::settingsInput currentSettings) {
   s->set_vflip(s, 0);                       // 0 = disable , 1 = enable
   s->set_dcw(s, 1);                         // 0 = disable , 1 = enable
   s->set_colorbar(s, 0);                    // 0 = disable , 1 = enable
+  // s->set_reg(s,0xff,0xff,0x00);//banksel
+  s->set_reg(s,0xd3,0xff,5);//clock
+  Serial.println("Settings Adjusted");
 }
-Serial.println("Settings Adjusted");
+
 }
 

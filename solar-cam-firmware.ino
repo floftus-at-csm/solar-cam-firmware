@@ -15,27 +15,18 @@ enum { NETWORK_SEARCH,
 enum { CONJURING,
        GATHERING,
        TEXTURING,
+       REFERENCE,
        SWITCH } currentMode;
 
 String FILE_PHOTO_NEW = "/data/photo.jpg";
 
 String currentFileNames[100];  // this might be too big - I need a way to keep track of memory usage
 boolean takeNewPhoto = true;
-int read_val = 0;
+int read_val = 1;
 int num_loops = 0;
 int moveOnVal = 0;
 
-// struct settingsInput {
-//   // should this be in the camera module? probably
-//   int brightness;
-//   int contrast;
-//   int saturation;
-//   int autoExposureControl;  // 0 - 1600
-//   int whiteBalance;
-//   String mode;
-//   int numPhotos;
-//   int numCameras;
-// };
+
 Fe_Firebase::settingsInput currentSettings;
 //--------------------------
 
@@ -65,79 +56,52 @@ void texturingMode(int num, int cams) {
   // change current file names
 }
 
+void referenceMode() {
+  String temp_photo = "/data/photo.jpg";
+  Fe_cam::capturePhotoSaveSpiffs(temp_photo);
+  delay(1);
+  Fe_Firebase::uploadFromSPIFFS(temp_photo);  // upload image
+  Fe_Firebase::writeVal("read", 0);
+  currentState = SETTINGS_MODE;
+}
+
 void networkSearch() {
   // init wifi
   // search through a set of possible wifis
   // once connected to one then change state to SETTINGS_MODE
 }
 
-void settingsLoop(){
-    currentSettings = Fe_Firebase::getSettings();
-    Fe_cam::adjustSettings(currentSettings);
-    String temp_photo = "/data/photo.jpg";
-    Fe_cam::capturePhotoSaveSpiffs(temp_photo);
-    delay(1);
-    Fe_Firebase::uploadFromSPIFFS(temp_photo); // upload image
-}
 
-// settingsInput settingsMode() {
 void settingsMode() {
   Serial.println("in settings loop");
-  // readval = 1 means change settings
-  // readval = 0 means wait
-  // moveonval = 1 means next state
-  // moveonval = 0 means wait
-  delay(500);
-  if (num_loops == 0) {
-    settingsLoop();
+  delay(3000);
+  read_val = Fe_Firebase::checkIntVal("read");
+  Serial.print("the read val is: ");
+  Serial.println(read_val);
+  if(read_val == 1){
+    currentSettings = Fe_Firebase::getSettings();
+    Serial.println(currentSettings.brightness);
+    Fe_cam::adjustSettings(currentSettings);
+    String tempCurrentMode = currentSettings.mode;
+    Serial.print("the image mode is: ");
+    Serial.println(currentSettings.mode);
+    currentState = IMAGING_MODE;
+  }else{
+    delay(2000);
   }
-  if (read_val == 1 && moveOnVal == 0) {
-    settingsLoop();
-    Fe_Firebase::writeVal("read", 0);
-    read_val = 0;
-  }
-
-  if (read_val == 0) {
-    // read_val = Fe_Firebase::checkIntVal("read");
-    moveOnVal = Fe_Firebase::checkIntVal("moveOn");
-    Serial.print("the moveOn val is: ");
-    Serial.println(moveOnVal);
-    if(moveOnVal == 1){
-      // reset moveOn val in database
-      Fe_Firebase::writeVal("moveOn", 0);
-      moveOnVal = 0;
-      read_val = 0;
-      currentState = IMAGING_MODE;
-    }
-    read_val = Fe_Firebase::checkIntVal("read");
-    Serial.print("the read val is: ");
-    Serial.println(read_val);
-  }
-
-  num_loops++;
-  Serial.print("the number of loops is: ");
-  Serial.println(num_loops);
-  delay(1000);
-  // state 1: check the database
-
-  // state 2: change settings, upload, change back to 1
-
-  // take_image - name as test image
-
-
-  // receive settings
-  // how can I check from the database when to receive settings? realtime database?
-  //implement settings or go to next mode
-
 }
 
 void imagingMode(Fe_Firebase::settingsInput current) {
+  // potentially convert to string
+  Serial.println("in imaging mode loop");
   if (current.mode == "conjuring") {
     currentMode = CONJURING;
   } else if (current.mode == "gathering") {
     currentMode = GATHERING;
   } else if (current.mode == "texturing") {
     currentMode = TEXTURING;
+  } else if (current.mode == "reference") {
+    currentMode = REFERENCE;
   }
 
   switch (currentMode) {
@@ -150,12 +114,14 @@ void imagingMode(Fe_Firebase::settingsInput current) {
     case TEXTURING:
       texturingMode(current.numPhotos, current.numCamera);
       break;
+    case REFERENCE:
+      referenceMode();
+      break;
     case SWITCH:
 
       break;
   }
 }
-
 
 void uploadMode(String file_names[]) {
 }
@@ -198,10 +164,4 @@ void loop() {
       deepSleep();
       break;
   }
-  // if (takeNewPhoto) {
-  //   Fe_cam::capturePhotoSaveSpiffs(FILE_PHOTO_NEW);
-  //   takeNewPhoto = false;
-  // }
-  // delay(1);
-  // Fe_Firebase::uploadFromSPIFFS(FILE_PHOTO_NEW);
 }

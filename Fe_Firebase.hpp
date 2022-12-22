@@ -11,6 +11,7 @@ struct settingsInput{
   int contrast;
   int saturation;
   int autoExposureControl; // 0 - 1600
+  int whiteBalance;
   String mode;
   int numPhotos;
   int numCamera;

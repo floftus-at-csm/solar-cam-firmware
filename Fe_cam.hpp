@@ -11,19 +11,8 @@
 #include "Fe_Firebase.hpp"
 
 /// The display module to control the attached LEDs
-///
-namespace Fe_cam {
 
-// struct settings{
-//   // should this be in the camera module? probably 
-//   int brightness;
-//   int contrast;
-//   int saturation;
-//   int autoExposureControl; // 0 - 1600
-//   String mode;
-//   int numPhotos;
-//   int numCamera;
-// };
+namespace Fe_cam {
 
 // Check if photo capture was successful
 bool checkPhoto(fs::FS& fs, String FILE_PHOTO);
