@@ -36,16 +36,38 @@ void conjuringMode(int num) {
   if (num == 1) {
     Fe_Wifi::turnOffWifi();
   }
+  // loop over the number of photos that you're doing
+  // create a string for each one
+
   //  save this for when I have an audio stream
   // change current file names
 }
 
 void gatheringMode(int num) {
-  if (num == 1) {
+  preferences.begin("my-app", false);
+  unsigned int counter = preferences.getUInt("counter", 0);
+  // if (num == 1) {
     Fe_Wifi::turnOffWifi();
+  // }
+  // for x photos: 
+  // for(int i=0; i<currentSettings.numPhotos; i++){
+  String temp_photo = "/gathering/" String(i) + ".jpg";
+  Fe_cam::capturePhotoSaveSpiffs(temp_photo);
+  if(counter < num){
+    counter++;
+    preferences.putUInt("counter", counter);
+  }else{
+    counter = 0;
+    preferences.putUInt("counter", counter);
+    currentState = UPLOAD_MODE;
   }
-  // take image on trigger (timer or sensor)
-  // repeat for set amount of photos?
+  preferences.end(); // Close the Preferences
+  // internet disconnect
+  // firebase disconnect
+  // deep sleep x amount of times - what happens when it turns on again? - I need a preferences file - currentState = IMAGING, currentMode = gathering, 
+  // }
+
+
   // change current file names
 }
 
@@ -92,7 +114,6 @@ void settingsMode() {
 }
 
 void imagingMode(Fe_Firebase::settingsInput current) {
-  // potentially convert to string
   Serial.println("in imaging mode loop");
   if (current.mode == "conjuring") {
     currentMode = CONJURING;
@@ -133,16 +154,36 @@ void setup() {
   // Serial port for debugging purposes
   Serial.begin(115200);
   Serial.println("In Setup");
-  Fe_Wifi::initWiFi();
-  Serial.println("Wifi initialized");
+  preferences.begin("my-app", false);
+  // Get the counter value, if the key does not exist, return a default value of SETTINGS_MODE
+  // Note: Key name is limited to 15 chars.
+  unsigned string state = preferences.getString("state", "settings");
+
+  if (state == "settings") {
+    currentState = SETTINGS_MODE;
+  } else if (state == "imaging") {
+    currentState = IMAGING_MODE;
+  } else if (state == "upload") {
+    currentState = UPLOAD_MODE;
+  } else if (state == "deep_sleep") {
+    currentState = DEEP_SLEEP_MODE;
+  }else if (state == "network") {
+    currentState = NETWORK_SEARCH;
+  }
+  // currentState = SETTINGS_MODE;
+  preferences.end(); // Close the Preferences
+  if(currentState == SETTINGS_MODE || currentState == UPLOAD_MODE){
+    Fe_Wifi::initWiFi();
+    Serial.println("Wifi initialized");
+    Fe_Firebase::initialize();
+    Serial.println("firebase initialized");
+  }
   Fe_cam::initSPIFFS();
   Serial.println("Spiffs initialized");
   Fe_cam::stopBrownout();
   Fe_cam::initCamera();
   Serial.println("Camera Initialised");
-  Fe_Firebase::initialize();
-  Serial.println("firebase initialized");
-  currentState = SETTINGS_MODE;
+
 }
 
 void loop() {
