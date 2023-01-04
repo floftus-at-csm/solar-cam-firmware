@@ -6,6 +6,10 @@
 2. [Parts](#parts)  
  1.[The Body](#body)
  2.[The Case](#case)
+ 3.[Solar Panel Holder](#solar_holder)
+ 4.[Interior Housing](#interior_housing)
+ 5.[Camera Module](#camera_module)
+3.[Power](#power)
 ## List of Hardware Components
 <a name="list_of_components"/>
 Camera: 
