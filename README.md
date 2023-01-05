@@ -2,6 +2,7 @@
 
 ![An image of the camera](https://github.com/floftus-at-csm/solar-cam-firmware/blob/main/DSC02843_brightness_upped.png)
 ##### Table of Contents  
+
 1. [List of Hardware Components](#list_of_components)  
 2. [Parts](#parts)  
  1.[The Body](#body)
@@ -10,8 +11,10 @@
  4.[Interior Housing](#interior_housing)
  5.[Camera Module](#camera_module)
 3.[Power](#power)
+
 ## List of Hardware Components
 <a name="list_of_components"/>
+
 Camera: 
 * WP-DC800 Camera Case 
 * ESP32-Cam with 8MB PSRAM
@@ -30,10 +33,14 @@ Image processor:
 * DF Robot Solar charge manager 
 * Case
 
-## Parts
 <a name="parts"/>
-### The Body 
+
+## Parts
+
 <a name="body"/>
+
+### The Body 
+
 The body of the camera is a waterproof case from an old point-and-shoot canon camera. 
 My original intention with the project was to re-use old hardware. I detail the struggles I had with this in the re-use section. My hardware is fitted using 3D printed parts that have been modelled around the case.
 
