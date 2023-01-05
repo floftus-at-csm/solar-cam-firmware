@@ -15,6 +15,7 @@ struct settingsInput{
   String mode;
   int numPhotos;
   int numCamera;
+  String autoMode;
 };
 
 void initialize();

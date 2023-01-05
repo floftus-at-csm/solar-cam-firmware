@@ -115,6 +115,12 @@ void getArrayFromFirestore (FirebaseJson startingJson, String pathToArray) {
   fromWebSettings.numCamera = tempJson.to<int>();
   tempJson.clear();
 
+  arr.get(tempJson, "/[8]/stringValue");
+  Serial.print("the number of cameras is: ");
+  Serial.println(tempJson.to<String>());
+  fromWebSettings.autoMode = tempJson.to<String>();
+  tempJson.clear();
+
 }
 int checkIntVal(String fieldVal){
   Serial.println("Checking the read value");
