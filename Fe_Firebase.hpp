@@ -15,6 +15,8 @@ struct settingsInput{
   String mode;
   int numPhotos;
   int numCamera;
+  int layerVal;
+  int sleepPeriod;
   String autoMode;
 };
 

@@ -114,12 +114,25 @@ void getArrayFromFirestore (FirebaseJson startingJson, String pathToArray) {
   Serial.println(tempJson.to<int>());
   fromWebSettings.numCamera = tempJson.to<int>();
   tempJson.clear();
+  
+  arr.get(tempJson, "/[8]/integerValue");
+  Serial.print("the layer val: ");
+  Serial.println(tempJson.to<int>());
+  fromWebSettings.layerVal = tempJson.to<int>();
+  tempJson.clear();
 
-  arr.get(tempJson, "/[8]/stringValue");
-  Serial.print("the number of cameras is: ");
+  arr.get(tempJson, "/[9]/integerValue");
+  Serial.print("the sleep period in Millis is: ");
+  Serial.println(tempJson.to<int>());
+  fromWebSettings.sleepPeriod = tempJson.to<int>();
+  tempJson.clear();
+
+  arr.get(tempJson, "/[10]/stringValue");
+  Serial.print("the automode is: ");
   Serial.println(tempJson.to<String>());
   fromWebSettings.autoMode = tempJson.to<String>();
   tempJson.clear();
+
 
 }
 int checkIntVal(String fieldVal){

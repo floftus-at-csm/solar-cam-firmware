@@ -18,7 +18,7 @@ namespace Fe_cam {
 bool checkPhoto(fs::FS& fs, String FILE_PHOTO);
 
 // Capture Photo and Save it to SPIFFS
-void capturePhotoSaveSpiffs(String FILE_PHOTO);
+void gatherPhotoSaveSpiffs(String FILE_PHOTO);
 
 void initSPIFFS();
 
@@ -26,6 +26,11 @@ void initCamera();
 
 void stopBrownout();
 
-void adjustSettings(Fe_Firebase::settingsInput currentSettings);
+int adjustSettings(Fe_Firebase::settingsInput currentSettings);
 
+void standardAdjustExposure(int light);
+
+void expAdjustExpossure(int light, int numLoops);
+
+void testingAdjustExposure(int currentNum);
   }

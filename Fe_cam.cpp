@@ -33,8 +33,8 @@ bool checkPhoto(fs::FS& fs, String FILE_PHOTO) {
   return (pic_sz > 100);
 }
 
-// Capture Photo and Save it to SPIFFS
-void capturePhotoSaveSpiffs(String FILE_PHOTO) {
+// gather Photo and Save it to SPIFFS
+void gatherPhotoSaveSpiffs(String FILE_PHOTO) {
   camera_fb_t* fb = NULL;  // pointer
   bool ok = 0;             // Boolean indicating if the picture has been taken correctly
   do {
@@ -142,7 +142,8 @@ void stopBrownout() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 }
 
-void adjustSettings(Fe_Firebase::settingsInput currentSettings) {
+int adjustSettings(Fe_Firebase::settingsInput currentSettings) {
+  int light = 0;
   Serial.println("Adjusting settings");
   sensor_t* s = esp_camera_sensor_get();
 
@@ -163,11 +164,12 @@ void adjustSettings(Fe_Firebase::settingsInput currentSettings) {
     s->set_aec2(s, 0);                        // 0 = disable , 1 = enable
     s->set_gain_ctrl(s, 0);                   // 0 = disable , 1 = enable
   }
-  s->set_ae_level(s, 0);                    // -2 to 2
-  s->set_aec_value(s, currentSettings.autoExposureControl);                 // 0 to 1200
+  s->set_ae_level(s, 2);                    // -2 to 2
+  // s->set_aec_value(s, currentSettings.autoExposureControl);                 // 0 to 1200
+  s->set_aec_value(s, 400);
   s->set_agc_gain(s, 0);                    // 0 to 30
-  s->set_gainceiling(s, (gainceiling_t)0);  // 0 to 6
-  s->set_bpc(s, 0);                         // 0 = disable , 1 = enable
+  s->set_gainceiling(s, (gainceiling_t)6);  // 0 to 6
+  s->set_bpc(s, 1);                         // 0 = disable , 1 = enable
   s->set_wpc(s, 1);                         // 0 = disable , 1 = enable
   s->set_raw_gma(s, 1);                     // 0 = disable , 1 = enable
   s->set_lenc(s, 1);                        // 0 = disable , 1 = enable
@@ -176,8 +178,179 @@ void adjustSettings(Fe_Firebase::settingsInput currentSettings) {
   s->set_dcw(s, 1);                         // 0 = disable , 1 = enable
   s->set_colorbar(s, 0);                    // 0 = disable , 1 = enable
   // s->set_reg(s,0xff,0xff,0x00);//banksel
+  s->set_reg(s,0xff,0xff,0x01);//banksel 
+  s->set_reg(s,0x11,0xff,01);//frame rate
+  s->set_reg(s,0xff,0xff,0x00);//banksel 
+  s->set_reg(s,0x86,0xff,1);//disable effects
   s->set_reg(s,0xd3,0xff,5);//clock
+  s->set_reg(s,0x42,0xff,0x4f);//image quality (lower is bad)
+  s->set_reg(s,0x44,0xff,1);//quality
+  delay(1200);
   Serial.println("Settings Adjusted");
+
+  light = s->get_reg(s,0x2f,0xff);
+  return light;
+}
+
+void standardAdjustExposure(int light){
+  if(light<140)
+    {
+      //here we are in night mode
+      if(light<45)s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
+      s->set_reg(s,0x13,0xff,0);//manual everything
+      s->set_reg(s,0x0c,0x6,0x8);//manual banding
+           
+      s->set_reg(s,0x45,0x3f,0x3f);//really long exposure (but it doesn't really work)
+    }
+    else
+    {
+      //here we are in daylight mode
+      
+      s->set_reg(s,0x2d,0xff,0x0);//extra lines
+      s->set_reg(s,0x2e,0xff,0x0);//extra lines
+
+      s->set_reg(s,0x47,0xff,0x0);//Frame Length Adjustment MSBs
+
+    if(light<150)
+    {
+      s->set_reg(s,0x46,0xff,0xd0);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0xff);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0xff);//exposure (doesn't seem to work)
+    }
+    else if(light<160)
+    {
+      s->set_reg(s,0x46,0xff,0xc0);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0xb0);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    }    
+    else if(light<170)
+    {
+      s->set_reg(s,0x46,0xff,0xb0);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x80);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    }    
+    else if(light<180)
+    {
+      s->set_reg(s,0x46,0xff,0xa8);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x80);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    } 
+    else if(light<190)
+    {
+      s->set_reg(s,0x46,0xff,0xa6);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x80);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0x90);//exposure (doesn't seem to work)
+    } 
+    else if(light<200)
+    {
+      s->set_reg(s,0x46,0xff,0xa4);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x80);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    } 
+    else if(light<210)
+    {
+      s->set_reg(s,0x46,0xff,0x98);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x60);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    } 
+    else if(light<220)
+    {
+      s->set_reg(s,0x46,0xff,0x80);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x20);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    } 
+    else if(light<230)
+    {
+      s->set_reg(s,0x46,0xff,0x70);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x20);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    } 
+    else if(light<240)
+    {
+      s->set_reg(s,0x46,0xff,0x60);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x20);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0x80);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    } 
+    else if(light<253)
+    {
+      s->set_reg(s,0x46,0xff,0x10);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x0);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0x40);//line adjust
+      s->set_reg(s,0x45,0xff,0x10);//exposure (doesn't seem to work)
+    }
+    else
+    {
+      s->set_reg(s,0x46,0xff,0x0);//Frame Length Adjustment LSBs
+      s->set_reg(s,0x2a,0xff,0x0);//line adjust MSB
+      s->set_reg(s,0x2b,0xff,0x0);//line adjust
+      s->set_reg(s,0x45,0xff,0x0);//exposure (doesn't seem to work)
+      s->set_reg(s,0x10,0xff,0x0);//exposure (doesn't seem to work)
+    }
+}
+
+void expAdjustExposure(int light, int numLoops){
+  // use randomness to select values in the array - if the light value is really high or low maybe cut out some values at the top or bottom so as to not overexposure
+  // potentially not full randomness as this might make automating the image processing difficult
+  // step up the array?
+  // s[;ot i[ tje]]
+  if(light<140)
+    {
+      //here we are in night mode
+      if(light<45)s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
+      s->set_reg(s,0x13,0xff,0);//manual everything
+      s->set_reg(s,0x0c,0x6,0x8);//manual banding
+           
+      s->set_reg(s,0x45,0x3f,0x3f);//really long exposure (but it doesn't really work)
+    }
+    else
+    {
+      //here we are in daylight mode
+      
+      s->set_reg(s,0x2d,0xff,0x0);//extra lines
+      s->set_reg(s,0x2e,0xff,0x0);//extra lines
+      s->set_reg(s,0x47,0xff,0x0);//Frame Length Adjustment MSBs          
+
+      s->set_reg(s,0x46,0xff,0xd0);//Frame Length Adjustment LSBs         - this changes from [0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0]
+      s->set_reg(s,0x2a,0xff,0xff);//line adjust MSB                      - this changes from [0xff, 0xb0, 0x80, 0x80, 0x80, 0x80, 0x60, 0x20, 0x20, 0x20, 0x0, 0x0]
+      s->set_reg(s,0x2b,0xff,0xff);//line adjust                          - this changes from [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x80, 0x40, 0x0]
+      s->set_reg(s,0x45,0xff,0xff);//exposure (doesn't seem to work)      - this changes from [0xff, 0x10, 0x10, 0x10, 0x90, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x0] - 0x3f (63) - can I potentitally go up to this? on both of last two
+
+      s->set_reg(s,0x0f,0xff,0x4b);//no idea
+      s->set_reg(s,0x03,0xff,0xcf);//no idea
+      s->set_reg(s,0x3d,0xff,0x34);//changes the exposure somehow, has to do with frame rate - exp with other values?
+
+      s->set_reg(s,0x11,0xff,0x0);//frame rate
+      s->set_reg(s,0x43,0xff,0x11);//11 is the default value 
+
+      // sometimes do this with lower brightess, even if brightness is too high
+      s->set_brightness(s, -2);  // -2 to 2
+      // s->set_reg(s,0x45,0x3f,0x3f);//really long exposure (but it doesn't really work)
+    }
+}
+void testingAdjustExposure(int currentNum){
+      int * hexArray = [0x0, 0x0a, 0x14, 0x1e, 0x28, 0x32, 0x3f] // 0, 10, 20, 30, 40, 50, 63
+      s->set_reg(s,0x2d,0xff,0x0);//extra lines
+      s->set_reg(s,0x2e,0xff,0x0);//extra lines
+      s->set_reg(s,0x47,0xff,0x0);//Frame Length Adjustment MSBs  
+
+      s->set_reg(s, 0x46, 0xff, 0xd0);//Frame Length Adjustment LSBs  - start with this consistent to see whats happening
+      s->set_reg(s, 0x2a, 0xff, 0xff);//line adjust MSB - start with this as consistent so I can see whats happening
+      s->set_reg(s, 0x2b, 0xff, 0xff); //line adjust
+      s->set_reg(s, 0x45, 0xff, hexArray[currentNum]); //exposure (doesn't seem to work) 
+
+      // String imageSaveString = "0x45-0xff-" + String(hexArray[currentNum]);
+      // return imageSaveString;
+       // s->set_reg(s,0x45, hexArray[currentNum], hexArray[currentNum]);
 }
 
 }
