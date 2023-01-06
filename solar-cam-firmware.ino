@@ -26,9 +26,9 @@ boolean takeNewPhoto = true;
 int read_val = 1;
 int num_loops = 0;
 int moveOnVal = 0;
-#define uS_TO_S_FACTOR 1000000  /* Conversion factor for micro seconds to seconds */
-#define TIME_TO_SLEEP  5        /* Time ESP32 will go to sleep (in seconds) */
-
+#define uS_TO_S_FACTOR 1000000 /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP 5        /* Time ESP32 will go to sleep (in seconds) */
+Preferences preferences;
 
 Fe_Firebase::settingsInput currentSettings;
 //--------------------------
@@ -53,23 +53,23 @@ void gatheringMode(int counter, int numLayers int numPhotos, int light, int slee
     Fe_Wifi::turnOffWifi();
   }
   // for each photo gather 3 base images: setttings -> gather photo -> change settings -> gather photo -> change settings -> gather photo -> increase count -> sleep
-  for(int i=0; i<numLayers; i++){
+  for (int i = 0; i < numLayers; i++) {
     String temp_photo = "/gathering/" + String(counter) + "/" + String(i) + ".jpg";
     // change settings
     Fe_cam::capturePhotoSaveSpiffs(temp_photo);
   }
-  if(counter < num){
+  if (counter < num) {
     counter++;
-    preferences.putUInt("counter", counter);
-  }else{
+    preferences.putInt("counter", counter);
+  } else {
     counter = 0;
-    preferences.putUInt("counter", counter);
+    preferences.putInt("counter", counter);
     currentState = UPLOAD_MODE;
   }
-  preferences.end(); // Close the Preferences
+  preferences.end();  // Close the Preferences
   // internet disconnect
   // firebase disconnect
-  // deep sleep x amount of times - what happens when it turns on again? - I need a preferences file - currentState = IMAGING, currentMode = gathering, 
+  // deep sleep x amount of times - what happens when it turns on again? - I need a preferences file - currentState = IMAGING, currentMode = gathering,
   // }
 
 
@@ -82,31 +82,33 @@ void testMode(int counter, int numLayers int numPhotos, int light, int sleepPeri
     // potentially just leave this
     Fe_Wifi::turnOffWifi();
   }
+  preferences.begin("solar-cam", false);
+  int numSinceUpload = preferences.getInt("sinceUpload", 0);
   // for each photo gather 3 base images: setttings -> gather photo -> change settings -> gather photo -> change settings -> gather photo -> increase count -> sleep
-  for(int i=0; i<numLayers; i++){
+  for (int i = 0; i < numLayers; i++) {
     // change settings
     Fe_cam::testingAdjustExposure(counter);
     String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
     Fe_cam::gatherPhotoSaveSpiffs(temp_photo);
-    // save a record of the 
+    // save a record of the
     // normally I'll just do this with numbers so you don't need to continuously save an array of strings to memory
     // ie normally work out the string using layerVal, counterVal, and numCycles since upload
   }
-  if(counter < num){
+  if (counter < num) {
     counter++;
-    preferences.putUInt("counter", counter);
-    preferences.end(); // Close the Preferences
-  }else{
-    counter = 0; // I think reset counter in upload mode
-    preferences.putUInt("counter", counter); // move this
-    preferences.putString("mode", "upload")
-    preferences.end(); // Close the Preferences
+    preferences.putInt("counter", counter);
+    preferences.end();  // Close the Preferences
+  } else {
+    counter = 0;                              // I think reset counter in upload mode
+    preferences.putInt("counter", counter);  // move this
+    preferences.putString("mode", "upload");   
+    preferences.end();  // Close the Preferences
     // currentState = UPLOAD_MODE;
     // write current state to preferences then go to sleep
   }
   // internet disconnect
   // firebase disconnect
-  float time_to_sleep = sleepPeriod / 1000; // is float ok here?
+  float time_to_sleep = sleepPeriod / 1000;  // is float ok here?
   esp_sleep_enable_timer_wakeup(time_to_sleep * uS_TO_S_FACTOR);
 }
 
@@ -139,7 +141,7 @@ void settingsMode() {
   read_val = Fe_Firebase::checkIntVal("read");
   Serial.print("the read val is: ");
   Serial.println(read_val);
-  if(read_val == 1){
+  if (read_val == 1) {
     currentSettings = Fe_Firebase::getSettings();
     Serial.println(currentSettings.brightness);
     Fe_cam::adjustSettings(currentSettings);
@@ -148,24 +150,24 @@ void settingsMode() {
     Serial.println(currentSettings.mode);
 
     preferences.begin("solar-cam", false);
-    preferences.putUInt("brightness", currentSettings.brightness);
-    preferences.putUInt("saturation", currentSettings.saturation);
-    preferences.putUInt("aec", currentSettings.autoExposureControl);
-    preferences.putUInt("wb", currentSettings.whiteBalance );
+    preferences.putInt("brightness", currentSettings.brightness);
+    preferences.putInt("saturation", currentSettings.saturation);
+    preferences.putInt("aec", currentSettings.autoExposureControl);
+    preferences.putInt("wb", currentSettings.whiteBalance);
     preferences.putString("mode", currentSettings.mode);
-    preferences.putUInt("numPhotos", currentSettings.numPhotos);
-    preferences.putUInt("numCams", currentSettings.numCamera);
-    preferences.putUInt("layerVal", currentSettings.layerVal);
+    preferences.putInt("numPhotos", currentSettings.numPhotos);
+    preferences.putInt("numCams", currentSettings.numCamera);
+    preferences.putInt("layerVal", currentSettings.layerVal);
     preferences.putString("auto", currentSettings.autoMode);
     preferences.end();
     currentState = IMAGING_MODE;
-  }else{
+  } else {
     delay(2000);
   }
 }
 
 void imagingMode() {
-    //     preferences.putInt("brightness", currentSettings.brightness);
+  //     preferences.putInt("brightness", currentSettings.brightness);
   //   preferences.putInt("saturation", currentSettings.saturation);
   //   preferences.putInt("aec", currentSettings.autoExposureControl);
   //   preferences.putInt("wb", currentSettings.whiteBalance );
@@ -185,20 +187,19 @@ void imagingMode() {
   Fe_Firebase::settingsInput current;
   preferences.begin("solar-cam", false);
   // imaging mode settings
-  current.numPhotos = preferences.getUInt("numPhotos", 1);
-  unsigned int counter = preferences.getUInt("counter", 0);
-  current.numCamera = preferences.getUInt("numCams", 1);
-  current.sleepPeriod = preferences.getUInt("sleepPeriod", 5000);
+  current.numPhotos = preferences.getInt("numPhotos", 1);
+  int counter = preferences.getInt("counter", 0);
+  current.numCamera = preferences.getInt("numCams", 1);
+  current.sleepPeriod = preferences.getInt("sleepPeriod", 5000);
   // standard settings
-  current.layerVal = preferences.getUInt("layerVal", 5);
-  current.brightness = preferences.getUInt("brightness", 0);
-  current.saturation = preferences.getUInt("saturation", 0);
-  current.autoExposureControl = preferences.getUInt("aec", 400);
-  current.whiteBalance = preferences.getUInt("wb", 0);
+  current.layerVal = preferences.getInt("layerVal", 5);
+  current.brightness = preferences.getInt("brightness", 0);
+  current.saturation = preferences.getInt("saturation", 0);
+  current.autoExposureControl = preferences.getInt("aec", 400);
+  current.whiteBalance = preferences.getInt("wb", 0);
   current.mode = preferences.getString("mode", 0);
   current.autoMode = preferences.getString("auto", "off");
-  preferences.end()
-  int lightVal = Fe_Cam::adjustSettings(current);  
+  preferences.end() int lightVal = Fe_Cam::adjustSettings(current);
   Serial.print("The light value is: ");
   Serial.prinln(lightVal);
   Serial.println("in imaging mode loop");
@@ -210,7 +211,7 @@ void imagingMode() {
     currentMode = TEXTURING;
   } else if (current.mode == "reference") {
     currentMode = REFERENCE;
-  }else if (current.mode == "test") {
+  } else if (current.mode == "test") {
     currentMode = TEST;
   }
 
@@ -236,8 +237,26 @@ void imagingMode() {
   }
 }
 
-void uploadMode(String file_names[]) {
+void uploadMode() {
   // we only get here if wifi is connected
+  // Fe_Firebase::settingsInput current;
+  
+  // Get values we need to work out file names
+  preferences.begin("solar-cam", false);
+  int numSinceUpload = preferences.getInt("sinceUpload", 0);
+  int numLayers = preferences.getInt("layerVal", 5);
+  int counter = preferences.getInt("counter", 5);
+
+  for (int i = 0; i < numLayers; i++) {
+    String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
+    Fe_Firebase::uploadFromSPIFFS(temp_photo);
+  }
+  int sleepPeriod = preferences.getInt("sleepPeriod", 5000);
+  numSinceUpload ++;
+  preferences.putInt("sinceUpload", numSinceUpload);
+  preferences.end(); 
+  float time_to_sleep = sleepPeriod / 1000;  // is float ok here?
+  esp_sleep_enable_timer_wakeup(time_to_sleep * uS_TO_S_FACTOR);
 }
 
 void deepSleep() {
@@ -248,12 +267,12 @@ void setup() {
   Serial.begin(115200);
   Serial.println("In Setup");
 
-  // check battery level
+  // !!! check battery level !!!
 
   preferences.begin("solar-cam", false);
   // Get the counter value, if the key does not exist, return a default value of SETTINGS_MODE
   // Note: Key name is limited to 15 chars.
-  unsigned string state = preferences.getString("mode", "settings");
+  String state = preferences.getString("mode", "settings");
 
   if (state == "settings") {
     currentState = SETTINGS_MODE;
@@ -263,26 +282,25 @@ void setup() {
     currentState = UPLOAD_MODE;
   } else if (state == "deep_sleep") {
     currentState = DEEP_SLEEP_MODE;
-  }else if (state == "network") {
+  } else if (state == "network") {
     currentState = NETWORK_SEARCH;
   }
   // currentState = SETTINGS_MODE;
-  preferences.end(); // Close the Preferences
-  if(currentState == SETTINGS_MODE || currentState == UPLOAD_MODE){
+  preferences.end();  // Close the Preferences
+  if (currentState == SETTINGS_MODE || currentState == UPLOAD_MODE) {
     Fe_Wifi::initWiFi();
     Serial.println("Wifi initialized");
     Fe_Firebase::initialize();
     Serial.println("firebase initialized");
     // what about if this fails? either turn of or go to imaging mode
     // I need a method for checking if initWiFi succeeds or fails
-    // if unsuccessful then increment the number of loops since upload, check battery levels and then either restart the loop again or switch off for a while  
+    // if unsuccessful then increment the number of loops since upload, check battery levels and then either restart the loop again or switch off for a while
   }
   Fe_cam::initSPIFFS();
   Serial.println("Spiffs initialized");
   Fe_cam::stopBrownout();
   Fe_cam::initCamera();
   Serial.println("Camera Initialised");
-
 }
 
 void loop() {
