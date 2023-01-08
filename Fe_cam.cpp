@@ -40,14 +40,15 @@ void gatherPhotoSaveSpiffs(String FILE_PHOTO) {
   do {
     // Take a photo with the camera
     Serial.println("Taking a photo...");
-
+    delay(1000);
     fb = esp_camera_fb_get();
+    delay(1000);
     if (!fb) {
       Serial.println("Camera capture failed");
       return;
     }
     // CHANGE THIS TO A LOOP - set loop val in web app
-    delay(1000);
+    
     // esp_camera_fb_return(fb);
     // delay(1000);
     // fb = NULL;
@@ -60,7 +61,8 @@ void gatherPhotoSaveSpiffs(String FILE_PHOTO) {
     // delay(750);
     // fb = esp_camera_fb_get();
     // Photo file name
-    Serial.printf("Picture file name: %s\n", FILE_PHOTO);
+    Serial.print("Picture file name: ");
+    Serial.println(FILE_PHOTO);
     SPIFFS.remove(FILE_PHOTO);
     File file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);
     // Insert the data in the photo file
@@ -77,6 +79,7 @@ void gatherPhotoSaveSpiffs(String FILE_PHOTO) {
     // Close the file
     file.close();
     esp_camera_fb_return(fb);
+    fb = NULL;
 
     // check if file has been correctly saved in SPIFFS
     ok = checkPhoto(SPIFFS, FILE_PHOTO);
@@ -178,13 +181,13 @@ int adjustSettings(Fe_Firebase::settingsInput currentSettings) {
   s->set_dcw(s, 1);                         // 0 = disable , 1 = enable
   s->set_colorbar(s, 0);                    // 0 = disable , 1 = enable
   // s->set_reg(s,0xff,0xff,0x00);//banksel
-  s->set_reg(s,0xff,0xff,0x01);//banksel 
-  s->set_reg(s,0x11,0xff,01);//frame rate
-  s->set_reg(s,0xff,0xff,0x00);//banksel 
-  s->set_reg(s,0x86,0xff,1);//disable effects
-  s->set_reg(s,0xd3,0xff,5);//clock
-  s->set_reg(s,0x42,0xff,0x4f);//image quality (lower is bad)
-  s->set_reg(s,0x44,0xff,1);//quality
+  // s->set_reg(s,0xff,0xff,0x01);//banksel 
+  // s->set_reg(s,0x11,0xff,01);//frame rate
+  // s->set_reg(s,0xff,0xff,0x00);//banksel 
+  // s->set_reg(s,0x86,0xff,1);//disable effects
+  // s->set_reg(s,0xd3,0xff,5);//clock
+  // s->set_reg(s,0x42,0xff,0x4f);//image quality (lower is bad)
+  // s->set_reg(s,0x44,0xff,1);//quality
   delay(1200);
   Serial.println("Settings Adjusted");
 
@@ -193,10 +196,13 @@ int adjustSettings(Fe_Firebase::settingsInput currentSettings) {
 }
 
 void standardAdjustExposure(int light){
+  sensor_t* s = esp_camera_sensor_get();
   if(light<140)
     {
       //here we are in night mode
-      if(light<45)s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
+      if(light<45){
+        s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
+      }
       s->set_reg(s,0x13,0xff,0);//manual everything
       s->set_reg(s,0x0c,0x6,0x8);//manual banding
            
@@ -296,6 +302,7 @@ void standardAdjustExposure(int light){
       s->set_reg(s,0x45,0xff,0x0);//exposure (doesn't seem to work)
       s->set_reg(s,0x10,0xff,0x0);//exposure (doesn't seem to work)
     }
+    }
 }
 
 void expAdjustExposure(int light, int numLoops){
@@ -303,10 +310,13 @@ void expAdjustExposure(int light, int numLoops){
   // potentially not full randomness as this might make automating the image processing difficult
   // step up the array?
   // s[;ot i[ tje]]
+  sensor_t* s = esp_camera_sensor_get();
   if(light<140)
     {
       //here we are in night mode
-      if(light<45)s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
+      if(light<45){
+        s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
+      }
       s->set_reg(s,0x13,0xff,0);//manual everything
       s->set_reg(s,0x0c,0x6,0x8);//manual banding
            
@@ -338,12 +348,16 @@ void expAdjustExposure(int light, int numLoops){
     }
 }
 void testingAdjustExposure(int currentNum){
-      int * hexArray = [0x0, 0x0a, 0x14, 0x1e, 0x28, 0x32, 0x3f] // 0, 10, 20, 30, 40, 50, 63
+      sensor_t* s = esp_camera_sensor_get();
+      unsigned int hexArray[] = {0x0, 0x0a, 0x14, 0x1e, 0x28, 0x32, 0x3f}; // 0, 10, 20, 30, 40, 50, 63
+      // [0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0]
+      // unsigned int hexArray[] = {0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0}
       s->set_reg(s,0x2d,0xff,0x0);//extra lines
       s->set_reg(s,0x2e,0xff,0x0);//extra lines
       s->set_reg(s,0x47,0xff,0x0);//Frame Length Adjustment MSBs  
 
       s->set_reg(s, 0x46, 0xff, 0xd0);//Frame Length Adjustment LSBs  - start with this consistent to see whats happening
+      // s->set_reg(s, 0x46, 0xff, hexArray[currentNum]);
       s->set_reg(s, 0x2a, 0xff, 0xff);//line adjust MSB - start with this as consistent so I can see whats happening
       s->set_reg(s, 0x2b, 0xff, 0xff); //line adjust
       s->set_reg(s, 0x45, 0xff, hexArray[currentNum]); //exposure (doesn't seem to work) 

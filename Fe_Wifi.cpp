@@ -3,7 +3,7 @@
 namespace Fe_Wifi {
 //Replace with your network credentials
 const char* ssid = "NOWTVP3MZZ";
-const char* password = "65ImNYYg8Y3J";
+const char* password = "65ImNYYG8Y3J";
 
 void initWiFi() {
   WiFi.begin(ssid, password);

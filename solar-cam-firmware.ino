@@ -46,7 +46,7 @@ void conjuringMode(int num) {
   // change current file names
 }
 
-void gatheringMode(int counter, int numLayers int numPhotos, int light, int sleepPeriod) {
+void gatheringMode(int counter, int numLayers, int numPhotos, int light, int sleepPeriod) {
 
   if (counter == 0) {
     // potentially just leave this
@@ -56,9 +56,9 @@ void gatheringMode(int counter, int numLayers int numPhotos, int light, int slee
   for (int i = 0; i < numLayers; i++) {
     String temp_photo = "/gathering/" + String(counter) + "/" + String(i) + ".jpg";
     // change settings
-    Fe_cam::capturePhotoSaveSpiffs(temp_photo);
+    Fe_cam::gatherPhotoSaveSpiffs(temp_photo);
   }
-  if (counter < num) {
+  if (counter < numPhotos) {
     counter++;
     preferences.putInt("counter", counter);
   } else {
@@ -76,7 +76,7 @@ void gatheringMode(int counter, int numLayers int numPhotos, int light, int slee
   // change current file names
 }
 
-void testMode(int counter, int numLayers int numPhotos, int light, int sleepPeriod) {
+void testMode(int counter, int numLayers, int numPhotos, int light, int sleepPeriod) {
 
   if (counter == 0) {
     // potentially just leave this
@@ -84,22 +84,26 @@ void testMode(int counter, int numLayers int numPhotos, int light, int sleepPeri
   }
   preferences.begin("solar-cam", false);
   int numSinceUpload = preferences.getInt("sinceUpload", 0);
+  preferences.end();
   // for each photo gather 3 base images: setttings -> gather photo -> change settings -> gather photo -> change settings -> gather photo -> increase count -> sleep
   for (int i = 0; i < numLayers; i++) {
     // change settings
-    Fe_cam::testingAdjustExposure(counter);
+    // Fe_cam::testingAdjustExposure(counter);
     String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
     Fe_cam::gatherPhotoSaveSpiffs(temp_photo);
+    delay(1000);
     // save a record of the
     // normally I'll just do this with numbers so you don't need to continuously save an array of strings to memory
     // ie normally work out the string using layerVal, counterVal, and numCycles since upload
   }
-  if (counter < num) {
+  if (counter < numPhotos) {
     counter++;
+    preferences.begin("solar-cam", false);
     preferences.putInt("counter", counter);
     preferences.end();  // Close the Preferences
   } else {
     counter = 0;                              // I think reset counter in upload mode
+    preferences.begin("solar-cam", false);
     preferences.putInt("counter", counter);  // move this
     preferences.putString("mode", "upload");   
     preferences.end();  // Close the Preferences
@@ -121,8 +125,8 @@ void texturingMode(int num, int cams) {
 
 void referenceMode() {
   String temp_photo = "/data/photo.jpg";
-  Fe_cam::capturePhotoSaveSpiffs(temp_photo);
-  delay(1);
+  Fe_cam::gatherPhotoSaveSpiffs(temp_photo);
+  delay(1000);
   Fe_Firebase::uploadFromSPIFFS(temp_photo);  // upload image
   Fe_Firebase::writeVal("read", 0);
   currentState = SETTINGS_MODE;
@@ -136,7 +140,7 @@ void networkSearch() {
 
 
 void settingsMode() {
-  Serial.println("in settings loop");
+  Serial.println("=== in settings loop ===");
   delay(3000);
   read_val = Fe_Firebase::checkIntVal("read");
   Serial.print("the read val is: ");
@@ -154,7 +158,7 @@ void settingsMode() {
     preferences.putInt("saturation", currentSettings.saturation);
     preferences.putInt("aec", currentSettings.autoExposureControl);
     preferences.putInt("wb", currentSettings.whiteBalance);
-    preferences.putString("mode", currentSettings.mode);
+    preferences.putString("imagingMode", currentSettings.mode);
     preferences.putInt("numPhotos", currentSettings.numPhotos);
     preferences.putInt("numCams", currentSettings.numCamera);
     preferences.putInt("layerVal", currentSettings.layerVal);
@@ -184,6 +188,7 @@ void imagingMode() {
   // int numPhotos;
   // int numCamera;
   // String autoMode;
+  Serial.println("=== in imaging mode ===");
   Fe_Firebase::settingsInput current;
   preferences.begin("solar-cam", false);
   // imaging mode settings
@@ -197,12 +202,14 @@ void imagingMode() {
   current.saturation = preferences.getInt("saturation", 0);
   current.autoExposureControl = preferences.getInt("aec", 400);
   current.whiteBalance = preferences.getInt("wb", 0);
-  current.mode = preferences.getString("mode", 0);
+  current.mode = preferences.getString("imagingMode", "reference");
   current.autoMode = preferences.getString("auto", "off");
-  preferences.end() int lightVal = Fe_Cam::adjustSettings(current);
+  preferences.end();
+  int lightVal = Fe_cam::adjustSettings(current);
   Serial.print("The light value is: ");
-  Serial.prinln(lightVal);
-  Serial.println("in imaging mode loop");
+  Serial.println(lightVal);
+  Serial.print("The current mode is: ");
+  Serial.println(current.mode);
   if (current.mode == "conjuring") {
     currentMode = CONJURING;
   } else if (current.mode == "gathering") {
@@ -240,12 +247,18 @@ void imagingMode() {
 void uploadMode() {
   // we only get here if wifi is connected
   // Fe_Firebase::settingsInput current;
-  
+  Serial.println("==== in upload mode ===");
   // Get values we need to work out file names
   preferences.begin("solar-cam", false);
   int numSinceUpload = preferences.getInt("sinceUpload", 0);
+  Serial.print("num since upload is: ");
+  Serial.println(numSinceUpload);
   int numLayers = preferences.getInt("layerVal", 5);
+  Serial.print("num layers are: ");
+  Serial.println(numLayers);
   int counter = preferences.getInt("counter", 5);
+  Serial.print("the counter is: ");
+  Serial.println(counter);
 
   for (int i = 0; i < numLayers; i++) {
     String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
@@ -272,8 +285,11 @@ void setup() {
   preferences.begin("solar-cam", false);
   // Get the counter value, if the key does not exist, return a default value of SETTINGS_MODE
   // Note: Key name is limited to 15 chars.
-  String state = preferences.getString("mode", "settings");
-
+  String state = preferences.getString("state", "settings"); // this is overall state not imaging mode! differentiate!
+  // state = "settings";
+  // preferences.putString("mode", state);
+  Serial.print("the current mode is: ");
+  Serial.println(state);
   if (state == "settings") {
     currentState = SETTINGS_MODE;
   } else if (state == "imaging") {
@@ -287,7 +303,7 @@ void setup() {
   }
   // currentState = SETTINGS_MODE;
   preferences.end();  // Close the Preferences
-  if (currentState == SETTINGS_MODE || currentState == UPLOAD_MODE) {
+  // if (currentState == SETTINGS_MODE || currentState == UPLOAD_MODE) {
     Fe_Wifi::initWiFi();
     Serial.println("Wifi initialized");
     Fe_Firebase::initialize();
@@ -295,7 +311,7 @@ void setup() {
     // what about if this fails? either turn of or go to imaging mode
     // I need a method for checking if initWiFi succeeds or fails
     // if unsuccessful then increment the number of loops since upload, check battery levels and then either restart the loop again or switch off for a while
-  }
+  // }
   Fe_cam::initSPIFFS();
   Serial.println("Spiffs initialized");
   Fe_cam::stopBrownout();
