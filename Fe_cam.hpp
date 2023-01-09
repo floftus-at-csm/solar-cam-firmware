@@ -9,6 +9,10 @@
 #include "driver/rtc_io.h"
 #include <SPIFFS.h>
 #include "Fe_Firebase.hpp"
+#include "SD_MMC.h"                         // sd card - see https://randomnerdtutorials.com/esp32-cam-take-photo-save-microsd-card/
+#include <SPI.h>
+#include <FS.h>                             // gives file access
+#define SD_CS 5                             // sd chip select pin = 5
 
 /// The display module to control the attached LEDs
 
@@ -20,9 +24,21 @@ bool checkPhoto(fs::FS& fs, String FILE_PHOTO);
 // Capture Photo and Save it to SPIFFS
 void gatherPhotoSaveSpiffs(String FILE_PHOTO);
 
+void gatherPhotoSaveSD(String FILE_PHOTO);
+
 void initSPIFFS();
 
+void initSD();
+
+void uploadImage(String FILE_PHOTO);
+
+void SD_to_SPIFFS(String FILE_PHOTO);
+
+void removePhoto(String FILE_PHOTO);
+
 void initCamera();
+
+void resetCamera(bool type);
 
 void stopBrownout();
 

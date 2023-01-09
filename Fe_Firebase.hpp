@@ -2,6 +2,9 @@
 
 #include "FS.h"
 #include "Firebase_ESP_Client.h"
+// #include "Fe_cam.hpp"
+// Provide the SD card interfaces setting and mounting
+// #include <addons/SDHelper.h>
 
 namespace Fe_Firebase{
 
@@ -23,6 +26,8 @@ struct settingsInput{
 void initialize();
 
 void uploadFromSPIFFS(String FILE_PHOTO);
+
+void uploadFromSD(String FILE_PHOTO);
 
 void getArrayFromFirestore(FirebaseJson startingJson, String pathToArray);
 settingsInput getSettings();

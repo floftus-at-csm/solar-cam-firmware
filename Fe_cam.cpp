@@ -20,6 +20,11 @@ namespace Fe_cam {
 #define VSYNC_GPIO_NUM 25
 #define HREF_GPIO_NUM 23
 #define PCLK_GPIO_NUM 22
+#define SPI_CS_PIN 13
+#define SPI_SCK_PIN 14
+#define SPI_MISO_PIN 2
+#define SPI_MOSI_PIN 15
+#define SPI_CLOCK_IN_MHz 16
 
 // array of filenames - to be used to delete files but also to post to firebase for uploading files
 String filenames[100];  // e.g. you can only have 100 files saved at a time - this number is arbitrary but should be related to the size of your memory card
@@ -28,7 +33,7 @@ String filenames[100];  // e.g. you can only have 100 files saved at a time - th
 
 // Check if photo capture was successful
 bool checkPhoto(fs::FS& fs, String FILE_PHOTO) {
-  File f_pic = fs.open(FILE_PHOTO);
+  File f_pic = fs.open(FILE_PHOTO.c_str());
   unsigned int pic_sz = f_pic.size();
   return (pic_sz > 100);
 }
@@ -91,9 +96,121 @@ void initSPIFFS() {
     Serial.println("An Error has occurred while mounting SPIFFS");
     ESP.restart();
   } else {
+    // SPIFFS.format();      // wipe spiffs
     delay(500);
     Serial.println("SPIFFS mounted successfully");
+    Serial.printf("total bytes: %d , used: %d \n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+    if(SPIFFS.usedBytes() > 500000){
+      SPIFFS.format();
+      Serial.println("Wiped SPIFFS");
+      Serial.printf("total bytes: %d , used: %d \n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
+    }
   }
+}
+
+// gather Photo and Save it to SPIFFS
+void gatherPhotoSaveSD(String FILE_PHOTO) {
+  fs::FS &fs = SD_MMC;          // sd card file system
+  camera_fb_t* fb = NULL;  // pointer
+  // bool ok = 0;             // Boolean indicating if the picture has been taken correctly
+  // do {
+    // Take a photo with the camera
+    Serial.println("Taking a photo...");
+    delay(1000);
+    fb = esp_camera_fb_get();
+    delay(1000);
+    esp_camera_fb_return(fb);
+    fb = NULL;
+    delay(1000);
+    fb = esp_camera_fb_get();
+    if (!fb) {
+      Serial.println("Camera capture failed");
+      return;
+    }
+
+    // Photo file name
+    Serial.print("Picture file name: ");
+    Serial.println(FILE_PHOTO);
+    // SPIFFS.remove(FILE_PHOTO);
+    File file = fs.open(FILE_PHOTO.c_str(), FILE_WRITE);                                  // create file on sd card
+    // Insert the data in the photo file
+    if (!file) {
+      Serial.println("Failed to open file in writing mode");
+    } else {
+      file.write(fb->buf, fb->len);  // payload (image), payload length
+      Serial.print("The picture has been saved in ");
+      Serial.print(FILE_PHOTO);
+      Serial.print(" - Size: ");
+      Serial.print(file.size());
+      Serial.println(" bytes");
+    }
+    // Close the file
+    file.close();
+    esp_camera_fb_return(fb);
+    fb = NULL;
+
+    // check if file has been correctly saved in SPIFFS
+  //   ok = checkPhoto(fs, FILE_PHOTO);
+    
+  // } while (!ok);
+}
+
+
+void initSD(){
+  // SD Card - if one is detected set 'sdcardPresent' High
+     if (!SD_MMC.begin("/sdcard", true)) {        // if loading sd card fails
+       // note: ('/sdcard", true)' = 1bit mode - see: https://www.reddit.com/r/esp32/comments/d71es9/a_breakdown_of_my_experience_trying_to_talk_to_an/
+      //  if (serialDebug) Serial.println("No SD Card detected");
+      Serial.println("No SD Card detected");
+      //  sdcardPresent = 0;                        // flag no sd card available
+     } else {
+       uint8_t cardType = SD_MMC.cardType();
+       if (cardType == CARD_NONE) {              // if invalid card found
+            Serial.println("SD Card type detect failed");
+          //  sdcardPresent = 0;                    // flag no sd card available
+       } else {
+         // valid sd card detected
+         uint16_t SDfreeSpace = (uint64_t)(SD_MMC.totalBytes() - SD_MMC.usedBytes()) / (1024 * 1024);
+         Serial.printf("SD Card found, free space = %dmB \n", SDfreeSpace);
+        //  sdcardPresent = 1;                      // flag sd card available
+       }
+     }
+     fs::FS &fs = SD_MMC;                        // sd card file system
+
+ // discover the number of image files already stored in '/img' folder of the sd card and set image file counter accordingly
+  //  imageCounter = 0;
+     int tq=fs.mkdir("/test");
+     tq=fs.mkdir("/gathering");
+     tq=fs.mkdir("/conjuring");                    // create the '/img' folder on sd card (in case it is not already there)
+     tq=fs.mkdir("/reference");
+     tq=fs.mkdir("/data");
+
+}
+
+void SD_to_SPIFFS(String FILE_PHOTO){
+  fs::FS &fs = SD_MMC;
+  SPIFFS.begin();
+  File source_file = fs.open(FILE_PHOTO.c_str());
+  File SPIFFS_file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);
+  static uint8_t buf[512]
+  while( source_file.read( buf, 512) ) {
+      SPIFFS_file.write( buf, 512 );
+  }
+  source_file.close();
+  SPIFFS_file.close();
+}
+
+void removePhoto(String FILE_PHOTO){
+  SPIFFS.format(); // deletes everything
+  fs::FS &fs = SD_MMC;
+  fs.remove(FILE_PHOTO.c_str());
+}
+
+void uploadImage(String FILE_PHOTO){
+  fs::FS &fs = SD_MMC; 
+  SD_MMC.begin("/sdcard", true);
+  // I think I need to call this from the camera module because this is where the 
+    Fe_Firebase::uploadFromSD(FILE_PHOTO);
 }
 
 void initCamera() {
@@ -138,6 +255,23 @@ void initCamera() {
     Serial.printf("Camera init failed with error 0x%x", err);
     ESP.restart();
   }
+}
+
+void resetCamera(bool type = 0) {
+  // 1 = hardware reset - 0 = software reset
+  if (type == 1) {
+    // power cycle the camera module (handy if camera stops responding)
+      digitalWrite(PWDN_GPIO_NUM, HIGH);    // turn power off to camera module
+      delay(300);
+      digitalWrite(PWDN_GPIO_NUM, LOW);
+      delay(300);
+      initCamera();
+    } else {
+    // reset via software (handy if you wish to change resolution or image type etc. - see test procedure)
+      esp_camera_deinit();
+      delay(50);
+      initCamera();
+    }
 }
 
 void stopBrownout() {

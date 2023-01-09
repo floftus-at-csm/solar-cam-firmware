@@ -77,7 +77,6 @@ void gatheringMode(int counter, int numLayers, int numPhotos, int light, int sle
 }
 
 void testMode(int counter, int numLayers, int numPhotos, int light, int sleepPeriod) {
-
   if (counter == 0) {
     // potentially just leave this
     Fe_Wifi::turnOffWifi();
@@ -90,7 +89,7 @@ void testMode(int counter, int numLayers, int numPhotos, int light, int sleepPer
     // change settings
     // Fe_cam::testingAdjustExposure(counter);
     String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
-    Fe_cam::gatherPhotoSaveSpiffs(temp_photo);
+    Fe_cam::gatherPhotoSaveSD(temp_photo);
     delay(1000);
     // save a record of the
     // normally I'll just do this with numbers so you don't need to continuously save an array of strings to memory
@@ -125,9 +124,11 @@ void texturingMode(int num, int cams) {
 
 void referenceMode() {
   String temp_photo = "/data/photo.jpg";
-  Fe_cam::gatherPhotoSaveSpiffs(temp_photo);
+  Fe_cam::gatherPhotoSaveSD(temp_photo);
   delay(1000);
+  Fe_cam::SD_to_SPIFFS(temp_photo);
   Fe_Firebase::uploadFromSPIFFS(temp_photo);  // upload image
+  Fe_cam::removePhoto(temp_photo);
   Fe_Firebase::writeVal("read", 0);
   currentState = SETTINGS_MODE;
 }
@@ -171,23 +172,6 @@ void settingsMode() {
 }
 
 void imagingMode() {
-  //     preferences.putInt("brightness", currentSettings.brightness);
-  //   preferences.putInt("saturation", currentSettings.saturation);
-  //   preferences.putInt("aec", currentSettings.autoExposureControl);
-  //   preferences.putInt("wb", currentSettings.whiteBalance );
-  //   preferences.putString("mode", currentSettings.mode);
-  //   preferences.putInt("numPhotos", currentSettings.numPhotos);
-  //   preferences.putInt("numCams", currentSettings.numCamera);
-  //   preferences.putString("auto", currentSettings.autoMode);
-  //   int brightness;
-  // int contrast;
-  // int saturation;
-  // int autoExposureControl; // 0 - 1600
-  // int whiteBalance;
-  // String mode;
-  // int numPhotos;
-  // int numCamera;
-  // String autoMode;
   Serial.println("=== in imaging mode ===");
   Fe_Firebase::settingsInput current;
   preferences.begin("solar-cam", false);
@@ -205,6 +189,7 @@ void imagingMode() {
   current.mode = preferences.getString("imagingMode", "reference");
   current.autoMode = preferences.getString("auto", "off");
   preferences.end();
+  // Fe_cam::resetCamera(0); // testing to see if something has built up in the frame buffer that needs resetting - might be worth resetting the camera every once in a while?
   int lightVal = Fe_cam::adjustSettings(current);
   Serial.print("The light value is: ");
   Serial.println(lightVal);
@@ -313,6 +298,8 @@ void setup() {
     // if unsuccessful then increment the number of loops since upload, check battery levels and then either restart the loop again or switch off for a while
   // }
   Fe_cam::initSPIFFS();
+  // Serial.println("Spiffs initialized");
+  // Fe_cam::initSD();
   Serial.println("Spiffs initialized");
   Fe_cam::stopBrownout();
   Fe_cam::initCamera();

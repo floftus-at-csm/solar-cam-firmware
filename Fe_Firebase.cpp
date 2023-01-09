@@ -35,7 +35,14 @@ void initialize() {
   configF.token_status_callback = tokenStatusCallback;  //see addons/TokenHelper.h
   fbdo.setResponseSize(2048);
   Firebase.begin(&configF, &auth);
+  /* Assign upload buffer size in byte */
+  // Data to be uploaded will send as multiple chunks with this size, to compromise between speed and memory used for buffering.
+  // The memory from external SRAM/PSRAM will not use in the TCP client internal tx buffer.
+  configF.fcs.upload_buffer_size = 512;
+  // if use SD card, mount it.
+  // SD_Card_Mounting(); // See src/addons/SDHelper.h
   Firebase.reconnectWiFi(true);
+  // Firebase.sdMMCBegin("/sdcard", true); //for 4-bit mode SDMMC
 }
 
 settingsInput getSettings() {
@@ -187,6 +194,21 @@ void uploadFromSPIFFS(String FILE_PHOTO) {
     //MIME type should be valid to avoid the download problem.
     //The file systems for flash and SD/SDMMC can be changed in FirebaseFS.h.
     if (Firebase.Storage.upload(&fbdo, STORAGE_BUCKET_ID /* Firebase Storage bucket id */, FILE_PHOTO /* path to local file */, mem_storage_type_flash /* memory storage type, mem_storage_type_flash and mem_storage_type_sd */, FILE_PHOTO /* path of remote file stored in the bucket */, "image/jpeg" /* mime type */)) {
+      Serial.printf("\nDownload URL: %s\n", fbdo.downloadURL().c_str());
+    } else {
+      Serial.println(fbdo.errorReason());
+    }
+  }
+}
+void uploadFromSD(String FILE_PHOTO) {
+  if (Firebase.ready() && !taskCompleted) {
+    taskCompleted = true;
+    Serial.print("Uploading picture... ");
+    // Fe_cam::startupSD();
+    // fs::FS &fs = SD_MMC;          // sd card file system
+    //MIME type should be valid to avoid the download problem.
+    //The file systems for flash and SD/SDMMC can be changed in FirebaseFS.h.
+    if (Firebase.Storage.upload(&fbdo, STORAGE_BUCKET_ID /* Firebase Storage bucket id */, FILE_PHOTO.c_str() /* path to local file */, mem_storage_type_sd /* memory storage type, mem_storage_type_flash and mem_storage_type_sd */, FILE_PHOTO /* path of remote file stored in the bucket */, "image/jpeg" /* mime type */)) {
       Serial.printf("\nDownload URL: %s\n", fbdo.downloadURL().c_str());
     } else {
       Serial.println(fbdo.errorReason());
