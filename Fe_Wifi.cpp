@@ -2,8 +2,8 @@
 
 namespace Fe_Wifi {
 //Replace with your network credentials
-const char* ssid = "NOWTVP3MZZ";
-const char* password = "65ImNYYG8Y3J";
+const char* ssid = secrets::secret_ssid;
+const char* password = secrets::secret_password;
 
 void initWiFi() {
   WiFi.begin(ssid, password);
