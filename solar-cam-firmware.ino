@@ -123,16 +123,30 @@ void texturingMode(int num, int cams) {
 }
 
 void referenceMode() {
-  String temp_photo = "/data/photo.jpg";
-  Fe_cam::gatherPhotoSaveSD(temp_photo);
-  delay(1000);
-  Fe_cam::SD_to_SPIFFS(temp_photo);
-  Fe_Firebase::uploadFromSPIFFS(temp_photo);  // upload image
-  Fe_cam::removePhoto(temp_photo);
-  Fe_Firebase::writeVal("read", 0);
-  currentState = SETTINGS_MODE;
-}
+  for(int i=0; i<7; i++){
+    String temp_photo = "/data/photo" + String(i) + ".jpg";
+    // Fe_cam::testingAdjustExposure(i);
+    Fe_cam::gatherPhotoSaveSD(temp_photo);
+    delay(1000);
+    Fe_cam::SD_to_SPIFFS(temp_photo);
+    Fe_Firebase::uploadFromSPIFFS(temp_photo);  // upload image
+    Fe_cam::removePhoto(temp_photo);
+    Fe_Firebase::writeVal("read", 0);
+    currentState = SETTINGS_MODE;
+  }
 
+}
+// void referenceMode() {
+//   String temp_photo = "/data/photo.jpg";
+//   Fe_cam::testingAdjustExposure(0);
+//   Fe_cam::gatherPhotoSaveSD(temp_photo);
+//   delay(1000);
+//   Fe_cam::SD_to_SPIFFS(temp_photo);
+//   Fe_Firebase::uploadFromSPIFFS(temp_photo);  // upload image
+//   Fe_cam::removePhoto(temp_photo);
+//   Fe_Firebase::writeVal("read", 0);
+//   currentState = SETTINGS_MODE;
+// }
 void networkSearch() {
   // init wifi
   // search through a set of possible wifis
@@ -247,7 +261,9 @@ void uploadMode() {
 
   for (int i = 0; i < numLayers; i++) {
     String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
+    Fe_cam::SD_to_SPIFFS(temp_photo);
     Fe_Firebase::uploadFromSPIFFS(temp_photo);
+    Fe_cam::removePhoto(temp_photo);
   }
   int sleepPeriod = preferences.getInt("sleepPeriod", 5000);
   numSinceUpload ++;
@@ -299,7 +315,7 @@ void setup() {
   // }
   Fe_cam::initSPIFFS();
   // Serial.println("Spiffs initialized");
-  // Fe_cam::initSD();
+  Fe_cam::initSD();
   Serial.println("Spiffs initialized");
   Fe_cam::stopBrownout();
   Fe_cam::initCamera();

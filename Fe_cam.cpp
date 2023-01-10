@@ -100,7 +100,7 @@ void initSPIFFS() {
     delay(500);
     Serial.println("SPIFFS mounted successfully");
     Serial.printf("total bytes: %d , used: %d \n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
-    if(SPIFFS.usedBytes() > 500000){
+    if(SPIFFS.usedBytes() > 200000){
       SPIFFS.format();
       Serial.println("Wiped SPIFFS");
       Serial.printf("total bytes: %d , used: %d \n", SPIFFS.totalBytes(), SPIFFS.usedBytes());
@@ -188,20 +188,25 @@ void initSD(){
 }
 
 void SD_to_SPIFFS(String FILE_PHOTO){
+  Serial.println("converting from sd to spiffs");
   fs::FS &fs = SD_MMC;
   SPIFFS.begin();
-  File source_file = fs.open(FILE_PHOTO.c_str());
+  File source_file = fs.open(FILE_PHOTO.c_str(), FILE_READ);
   File SPIFFS_file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);
-  static uint8_t buf[512]
+  static uint8_t buf[512];
   while( source_file.read( buf, 512) ) {
       SPIFFS_file.write( buf, 512 );
+      // Serial.println("writing to spiffs");
   }
+  Serial.println("converted file");
   source_file.close();
   SPIFFS_file.close();
+  delay(500);
 }
 
 void removePhoto(String FILE_PHOTO){
   SPIFFS.format(); // deletes everything
+  Serial.println("Wiped SPIFFS");
   fs::FS &fs = SD_MMC;
   fs.remove(FILE_PHOTO.c_str());
 }
@@ -293,11 +298,12 @@ int adjustSettings(Fe_Firebase::settingsInput currentSettings) {
   s->set_awb_gain(s, 1);                    // 0 = disable , 1 = enable
   s->set_wb_mode(s, currentSettings.whiteBalance);                     // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
   if(currentSettings.autoMode == "autoOn"){
-    s->set_exposure_ctrl(s, 1);               // 0 = disable , 1 = enable
+    s->set_exposure_ctrl(s, 0);               // 0 = disable , 1 = enable
     s->set_aec2(s, 1);                        // 0 = disable , 1 = enable
     s->set_gain_ctrl(s, 1);                   // 0 = disable , 1 = enable
   }else{
-    s->set_exposure_ctrl(s, 0);               // 0 = disable , 1 = enable
+    Serial.println(" =====  in exposure else condition ======== ");
+    s->set_exposure_ctrl(s, 1);               // 0 = disable , 1 = enable
     s->set_aec2(s, 0);                        // 0 = disable , 1 = enable
     s->set_gain_ctrl(s, 0);                   // 0 = disable , 1 = enable
   }
@@ -321,11 +327,12 @@ int adjustSettings(Fe_Firebase::settingsInput currentSettings) {
   // s->set_reg(s,0x86,0xff,1);//disable effects
   // s->set_reg(s,0xd3,0xff,5);//clock
   // s->set_reg(s,0x42,0xff,0x4f);//image quality (lower is bad)
+
   // s->set_reg(s,0x44,0xff,1);//quality
+  light = s->get_reg(s,0x2f,0xff);
   delay(1200);
   Serial.println("Settings Adjusted");
 
-  light = s->get_reg(s,0x2f,0xff);
   return light;
 }
 
@@ -481,24 +488,34 @@ void expAdjustExposure(int light, int numLoops){
       // s->set_reg(s,0x45,0x3f,0x3f);//really long exposure (but it doesn't really work)
     }
 }
-void testingAdjustExposure(int currentNum){
-      sensor_t* s = esp_camera_sensor_get();
-      unsigned int hexArray[] = {0x0, 0x0a, 0x14, 0x1e, 0x28, 0x32, 0x3f}; // 0, 10, 20, 30, 40, 50, 63
-      // [0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0]
-      // unsigned int hexArray[] = {0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0}
-      s->set_reg(s,0x2d,0xff,0x0);//extra lines
-      s->set_reg(s,0x2e,0xff,0x0);//extra lines
-      s->set_reg(s,0x47,0xff,0x0);//Frame Length Adjustment MSBs  
+int testingAdjustExposure(int currentNum){
+  int light = 0;
+  sensor_t* s = esp_camera_sensor_get();
+  unsigned int hexArray2[] = {0x0, 0x0a, 0x14, 0x1e, 0x28, 0x32, 0x3f}; // 0, 10, 20, 30, 40, 50, 63
+  // [0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0]
+  unsigned int hexArray[] = {0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0};
+  s->set_reg(s,0xff,0xff,0x01);//banksel
+  s->set_reg(s,0x2d,0xff,0x0);//extra lines
+  s->set_reg(s,0x2e,0xff,0x0);//extra lines
+  s->set_reg(s,0x47,0xff,0x0);//Frame Length Adjustment MSBs  
 
-      s->set_reg(s, 0x46, 0xff, 0xd0);//Frame Length Adjustment LSBs  - start with this consistent to see whats happening
-      // s->set_reg(s, 0x46, 0xff, hexArray[currentNum]);
-      s->set_reg(s, 0x2a, 0xff, 0xff);//line adjust MSB - start with this as consistent so I can see whats happening
-      s->set_reg(s, 0x2b, 0xff, 0xff); //line adjust
-      s->set_reg(s, 0x45, 0xff, hexArray[currentNum]); //exposure (doesn't seem to work) 
+  // s->set_reg(s, 0x46, 0xff, 0xd0);//Frame Length Adjustment LSBs  - start with this consistent to see whats happening
+  s->set_reg(s, 0x46, 0xff, hexArray[currentNum]);
+  s->set_reg(s, 0x2a, 0xff, 0xff);//line adjust MSB - start with this as consistent so I can see whats happening
+  s->set_reg(s, 0x2b, 0xff, 0xff); //line adjust
+  s->set_reg(s, 0x45, 0xff, hexArray2[currentNum]); //exposure (doesn't seem to work) 
+  s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
 
-      // String imageSaveString = "0x45-0xff-" + String(hexArray[currentNum]);
-      // return imageSaveString;
-       // s->set_reg(s,0x45, hexArray[currentNum], hexArray[currentNum]);
+  // potentially change set_aec_value(s, 400) and 
+  //  s->set_brightness(s, -2);  // -2 to 2
+  light = s->get_reg(s,0x2f,0xff);
+  Serial.print("the light value is: ");
+  Serial.println(light);
+  delay(1200);
+  // String imageSaveString = "0x45-0xff-" + String(hexArray[currentNum]);
+  // return imageSaveString;
+    // s->set_reg(s,0x45, hexArray[currentNum], hexArray[currentNum]);
+    return light;
 }
 
 }

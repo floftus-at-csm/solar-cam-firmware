@@ -48,5 +48,5 @@ void standardAdjustExposure(int light);
 
 void expAdjustExpossure(int light, int numLoops);
 
-void testingAdjustExposure(int currentNum);
+int testingAdjustExposure(int currentNum);
   }
