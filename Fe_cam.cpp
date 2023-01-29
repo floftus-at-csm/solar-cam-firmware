@@ -242,6 +242,7 @@ void initCamera() {
   // config.xclk_freq_hz = 20000000;
   config.xclk_freq_hz = 16500000; 
   config.pixel_format = PIXFORMAT_JPEG;
+  // config.pixel_format = PIXFORMAT_GRAYSCALE;
 
   if (psramFound()) {
     Serial.println("psram found");
@@ -488,12 +489,113 @@ void expAdjustExposure(int light, int numLoops){
       // s->set_reg(s,0x45,0x3f,0x3f);//really long exposure (but it doesn't really work)
     }
 }
-int testingAdjustExposure(int currentNum){
+
+
+void gatheringLoop(int currentNum){
+  int light = 0;
+  sensor_t* s = esp_camera_sensor_get();
+  // potentially invert hex order
+  unsigned int hexArray2[] = {0x3f,  0x28, 0x0 }; // 0, 10, 20, 30, 40, 50, 63
+  // [0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0]
+  unsigned int hexArray[] = {0x0, 0x10,  0x98, 0xa8, 0xd0};
+  int exp_ctrl[] = {0, 0, 1};
+  // int gain_tester[] = {0, 15, 30};
+  // int aec[] = {400, 600, 1200};
+  // int contrasts[] = {2, 0, -2};
+  int contrast = map(currentNum, 0, currentNum, -2, 2);
+  // int wb_mode[] = {0, 2, 4};
+    s->set_brightness(s, 0);  // -2 to 2
+  // s->set_brightness(s, 2);  // -2 to 2
+  s->set_contrast(s, contrast);                    // -2 to 2
+  s->set_saturation(s, 0);                  // -2 to 2
+  s->set_special_effect(s, 0);              // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
+  s->set_whitebal(s, 1);                    // 0 = disable , 1 = enable
+  s->set_awb_gain(s, 1);                    // 0 = disable , 1 = enable
+  s->set_wb_mode(s, 0);                     // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
+
+
+    s->set_exposure_ctrl(s, exp_ctrl[currentNum]);               // 0 = disable , 1 = enable
+    s->set_aec2(s, 0);                        // 0 = disable , 1 = enable
+    s->set_gain_ctrl(s, 0);                   // 0 = disable , 1 = enable
+
+  s->set_ae_level(s, 0);                    // -2 to 2
+  // s->set_aec_value(s, currentSettings.autoExposureControl);                 // 0 to 1200
+  s->set_aec_value(s, 400);
+  s->set_agc_gain(s, 0);                    // 0 to 30
+  s->set_gainceiling(s, (gainceiling_t)6);  // 0 to 6
+  s->set_bpc(s, 1);                         // 0 = disable , 1 = enable
+  s->set_wpc(s, 1);                         // 0 = disable , 1 = enable
+  s->set_raw_gma(s, 1);                     // 0 = disable , 1 = enable
+  s->set_lenc(s, 1);                        // 0 = disable , 1 = enable
+  s->set_hmirror(s, 0);                     // 0 = disable , 1 = enable
+  s->set_vflip(s, 0);                       // 0 = disable , 1 = enable
+  s->set_dcw(s, 1);                         // 0 = disable , 1 = enable
+  s->set_colorbar(s, 0);                    // 0 = disable , 1 = enable
+  s->set_reg(s,0xff,0xff,0x01);//banksel
+  s->set_reg(s,0x2d,0xff,0x0);//extra lines
+  s->set_reg(s,0x2e,0xff,0x0);//extra lines
+  s->set_reg(s,0x47,0xff,0x0);//Frame Length Adjustment MSBs  
+
+  // s->set_reg(s, 0x46, 0xff, 0xd0);//Frame Length Adjustment LSBs  - start with this consistent to see whats happening
+  // s->set_reg(s, 0x46, 0xff, hexArray[currentNum]);
+  s->set_reg(s, 0x2a, 0xff, 0xff);//line adjust MSB - start with this as consistent so I can see whats happening
+  s->set_reg(s, 0x2b, 0xff, 0xff); //line adjust
+  // s->set_reg(s, 0x45, 0xff, hexArray2[currentNum]); //exposure (doesn't seem to work) 
+  s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
+
+  // potentially change set_aec_value(s, 400) and 
+  //  s->set_brightness(s, -2);  // -2 to 2
+  light = s->get_reg(s,0x2f,0xff);
+  Serial.print("the hex value is: ");
+  Serial.println(hexArray2[currentNum]);
+  Serial.print("the light value is: ");
+  Serial.println(light);
+  delay(1400);
+}
+int testingAdjustExposure(int currentNum, Fe_Firebase::settingsInput currentSettings){
+  //   int brightness;
+  // int contrast;
+  // int saturation;
+  // int autoExposureControl; // 0 - 1600
+  // int whiteBalance;
+  // String mode;
+  // int numPhotos;
+  // int numCamera;
+  // int layerVal;
+  // int sleepPeriod;
+  // String autoMode;
   int light = 0;
   sensor_t* s = esp_camera_sensor_get();
   unsigned int hexArray2[] = {0x0, 0x0a, 0x14, 0x1e, 0x28, 0x32, 0x3f}; // 0, 10, 20, 30, 40, 50, 63
   // [0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0]
   unsigned int hexArray[] = {0xd0, 0xc0, 0xb0, 0xa8, 0xa6, 0xa4, 0x98, 0x80, 0x70, 0x60, 0x10, 0x0};
+    s->set_brightness(s, 0);  // -2 to 2
+  // s->set_brightness(s, 2);  // -2 to 2
+  s->set_contrast(s, 0);                    // -2 to 2
+  s->set_saturation(s,2);                  // -2 to 2
+  s->set_special_effect(s, 0);              // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
+  s->set_whitebal(s, 1);                    // 0 = disable , 1 = enable
+  s->set_awb_gain(s, 1);                    // 0 = disable , 1 = enable
+  s->set_wb_mode(s, 0);                     // 0 to 4 - if awb_gain enabled (0 - Auto, 1 - Sunny, 2 - Cloudy, 3 - Office, 4 - Home)
+
+
+    s->set_exposure_ctrl(s, currentSettings.brightness);               // 0 = disable , 1 = enable
+    s->set_aec2(s, currentSettings.contrast);                        // 0 = disable , 1 = enable
+    s->set_gain_ctrl(s, currentSettings.saturation);                   // 0 = disable , 1 = enable
+
+  s->set_ae_level(s, 0);                    // -2 to 2
+  // s->set_aec_value(s, currentSettings.autoExposureControl);                 // 0 to 1200
+  s->set_aec_value(s, currentSettings.autoExposureControl);
+  s->set_agc_gain(s, 0);                    // 0 to 30
+  s->set_gainceiling(s, (gainceiling_t)6);  // 0 to 6
+  s->set_bpc(s, 1);                         // 0 = disable , 1 = enable
+  s->set_wpc(s, 1);                         // 0 = disable , 1 = enable
+  s->set_raw_gma(s, 1);                     // 0 = disable , 1 = enable
+  s->set_lenc(s, 1);                        // 0 = disable , 1 = enable
+  s->set_hmirror(s, 0);                     // 0 = disable , 1 = enable
+  s->set_vflip(s, 0);                       // 0 = disable , 1 = enable
+  s->set_dcw(s, 1);                         // 0 = disable , 1 = enable
+  s->set_colorbar(s, 0);                    // 0 = disable , 1 = enable
   s->set_reg(s,0xff,0xff,0x01);//banksel
   s->set_reg(s,0x2d,0xff,0x0);//extra lines
   s->set_reg(s,0x2e,0xff,0x0);//extra lines
@@ -509,6 +611,8 @@ int testingAdjustExposure(int currentNum){
   // potentially change set_aec_value(s, 400) and 
   //  s->set_brightness(s, -2);  // -2 to 2
   light = s->get_reg(s,0x2f,0xff);
+  Serial.print("the hex value is: ");
+  Serial.println(hexArray2[currentNum]);
   Serial.print("the light value is: ");
   Serial.println(light);
   delay(1200);

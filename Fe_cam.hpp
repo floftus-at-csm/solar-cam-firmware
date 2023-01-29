@@ -42,11 +42,13 @@ void resetCamera(bool type);
 
 void stopBrownout();
 
+void gatheringLoop(int currentNum);
+
 int adjustSettings(Fe_Firebase::settingsInput currentSettings);
 
 void standardAdjustExposure(int light);
 
 void expAdjustExpossure(int light, int numLoops);
 
-int testingAdjustExposure(int currentNum);
+int testingAdjustExposure(int currentNum, Fe_Firebase::settingsInput currentSettings);
   }

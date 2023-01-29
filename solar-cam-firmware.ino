@@ -122,10 +122,11 @@ void texturingMode(int num, int cams) {
   // change current file names
 }
 
-void referenceMode() {
-  for(int i=0; i<7; i++){
+void referenceMode(Fe_Firebase::settingsInput currentSettings) {
+  for(int i=0; i<currentSettings.numPhotos; i++){
     String temp_photo = "/data/photo" + String(i) + ".jpg";
-    // Fe_cam::testingAdjustExposure(i);
+    Fe_cam::gatheringLoop(i);
+    // Fe_cam::testingAdjustExposure(i, currentSettings);
     Fe_cam::gatherPhotoSaveSD(temp_photo);
     delay(1000);
     Fe_cam::SD_to_SPIFFS(temp_photo);
@@ -232,7 +233,7 @@ void imagingMode() {
       texturingMode(current.numPhotos, current.numCamera);
       break;
     case REFERENCE:
-      referenceMode();
+      referenceMode(current);
       break;
     case TEST:
       testMode(counter, current.layerVal, current.numPhotos, lightVal, current.sleepPeriod);

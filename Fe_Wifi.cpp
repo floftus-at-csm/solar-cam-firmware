@@ -1,5 +1,5 @@
 #include "Fe_Wifi.hpp"
-
+#include "secrets.h"
 namespace Fe_Wifi {
 //Replace with your network credentials
 const char* ssid = secrets::secret_ssid;
