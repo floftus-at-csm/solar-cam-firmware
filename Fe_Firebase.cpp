@@ -20,7 +20,7 @@ FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig configF;
 
-bool taskCompleted = false;
+// bool taskCompleted = false;
 
 settingsInput fromWebSettings;
 
@@ -178,7 +178,7 @@ void writeVal(String fieldPath, int newValue){
     content.set(combinedFieldPath, newValue);
 
     // if (Firebase.Firestore.commitDocument(&fbdo, FIREBASE_PROJECT_ID, "" /* databaseId can be (default) or empty */, writes /* dynamic array of fb_esp_firestore_document_write_t */, "" /* transaction */))
-    taskCompleted = false;
+    // taskCompleted = false;
     if (Firebase.Firestore.patchDocument(&fbdo, FIREBASE_PROJECT_ID, "" /* databaseId can be (default) or empty */, documentPath.c_str(), content.raw(), fieldPath /* updateMask */)) 
           Serial.printf("ok\n%s\n\n", fbdo.payload().c_str());
     else
@@ -187,8 +187,9 @@ void writeVal(String fieldPath, int newValue){
 }
 
 void uploadFromSPIFFS(String FILE_PHOTO) {
-  if (Firebase.ready() && !taskCompleted) {
-    taskCompleted = true;
+  // if (Firebase.ready() && !taskCompleted) {
+    if (Firebase.ready()) {
+    // taskCompleted = true;
     Serial.print("Uploading picture... ");
 
     //MIME type should be valid to avoid the download problem.
@@ -201,8 +202,9 @@ void uploadFromSPIFFS(String FILE_PHOTO) {
   }
 }
 void uploadFromSD(String FILE_PHOTO) {
-  if (Firebase.ready() && !taskCompleted) {
-    taskCompleted = true;
+  // if (Firebase.ready() && !taskCompleted) {
+    if (Firebase.ready()) {
+    // taskCompleted = true;
     Serial.print("Uploading picture... ");
     // Fe_cam::startupSD();
     // fs::FS &fs = SD_MMC;          // sd card file system

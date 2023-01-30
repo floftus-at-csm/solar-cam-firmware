@@ -42,7 +42,7 @@ void resetCamera(bool type);
 
 void stopBrownout();
 
-void gatheringLoop(int currentNum);
+void gatheringLoop(int currentNum, int numPhotos);
 
 int adjustSettings(Fe_Firebase::settingsInput currentSettings);
 

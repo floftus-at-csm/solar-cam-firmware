@@ -26,6 +26,7 @@ boolean takeNewPhoto = true;
 int read_val = 1;
 int num_loops = 0;
 int moveOnVal = 0;
+int sleepPeriod = 0;
 #define uS_TO_S_FACTOR 1000000 /* Conversion factor for micro seconds to seconds */
 #define TIME_TO_SLEEP 5        /* Time ESP32 will go to sleep (in seconds) */
 Preferences preferences;
@@ -46,33 +47,43 @@ void conjuringMode(int num) {
   // change current file names
 }
 
-void gatheringMode(int counter, int numLayers, int numPhotos, int light, int sleepPeriod) {
-
-  if (counter == 0) {
-    // potentially just leave this
-    Fe_Wifi::turnOffWifi();
-  }
+void gatheringMode(int counter, int numLayers, int numPhotos, int light, int sleepPeriod, int numSince) {
+  preferences.begin("solar-cam", false);
+  // if (counter == 0) {
+  //   // potentially just leave this
+  //   Fe_Wifi::turnOffWifi();
+  // }
   // for each photo gather 3 base images: setttings -> gather photo -> change settings -> gather photo -> change settings -> gather photo -> increase count -> sleep
   for (int i = 0; i < numLayers; i++) {
-    String temp_photo = "/gathering/" + String(counter) + "/" + String(i) + ".jpg";
+    String temp_photo = "/gathering/" + String(numSince) + "_" + String(counter) + "-" + String(i) + ".jpg";
     // change settings
-    Fe_cam::gatherPhotoSaveSpiffs(temp_photo);
+    Fe_cam::gatheringLoop(i, currentSettings.numPhotos);
+    delay(1000);
+    Fe_cam::gatherPhotoSaveSD(temp_photo);
   }
   if (counter < numPhotos) {
+    Serial.println("in counter if");
     counter++;
     preferences.putInt("counter", counter);
+    preferences.putString("state", "imaging");
   } else {
-    counter = 0;
     preferences.putInt("counter", counter);
     currentState = UPLOAD_MODE;
+    preferences.putString("state", "upload");
   }
   preferences.end();  // Close the Preferences
   // internet disconnect
   // firebase disconnect
   // deep sleep x amount of times - what happens when it turns on again? - I need a preferences file - currentState = IMAGING, currentMode = gathering,
   // }
-
-
+  int sleepPeriod_i = preferences.getInt("sleepPeriod", 5000);
+  float time_to_sleep = sleepPeriod_i / 1000;  // is float ok here?
+  esp_sleep_enable_timer_wakeup(time_to_sleep * uS_TO_S_FACTOR);
+  // esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  Serial.println("Setup ESP32 to sleep for every " + String(time_to_sleep) +
+  " Seconds");
+  Serial.flush(); 
+  esp_deep_sleep_start();
   // change current file names
 }
 
@@ -88,7 +99,7 @@ void testMode(int counter, int numLayers, int numPhotos, int light, int sleepPer
   for (int i = 0; i < numLayers; i++) {
     // change settings
     // Fe_cam::testingAdjustExposure(counter);
-    String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
+    String temp_photo = "/t/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
     Fe_cam::gatherPhotoSaveSD(temp_photo);
     delay(1000);
     // save a record of the
@@ -96,6 +107,7 @@ void testMode(int counter, int numLayers, int numPhotos, int light, int sleepPer
     // ie normally work out the string using layerVal, counterVal, and numCycles since upload
   }
   if (counter < numPhotos) {
+    Serial.println("in counter if");
     counter++;
     preferences.begin("solar-cam", false);
     preferences.putInt("counter", counter);
@@ -125,7 +137,7 @@ void texturingMode(int num, int cams) {
 void referenceMode(Fe_Firebase::settingsInput currentSettings) {
   for(int i=0; i<currentSettings.numPhotos; i++){
     String temp_photo = "/data/photo" + String(i) + ".jpg";
-    Fe_cam::gatheringLoop(i);
+    Fe_cam::gatheringLoop(i, currentSettings.numPhotos);
     // Fe_cam::testingAdjustExposure(i, currentSettings);
     Fe_cam::gatherPhotoSaveSD(temp_photo);
     delay(1000);
@@ -179,6 +191,7 @@ void settingsMode() {
     preferences.putInt("numCams", currentSettings.numCamera);
     preferences.putInt("layerVal", currentSettings.layerVal);
     preferences.putString("auto", currentSettings.autoMode);
+    preferences.putInt("sleepPeriod", currentSettings.sleepPeriod);
     preferences.end();
     currentState = IMAGING_MODE;
   } else {
@@ -203,6 +216,7 @@ void imagingMode() {
   current.whiteBalance = preferences.getInt("wb", 0);
   current.mode = preferences.getString("imagingMode", "reference");
   current.autoMode = preferences.getString("auto", "off");
+  int numSinceUpload = preferences.getInt("sinceUpload", 0);
   preferences.end();
   // Fe_cam::resetCamera(0); // testing to see if something has built up in the frame buffer that needs resetting - might be worth resetting the camera every once in a while?
   int lightVal = Fe_cam::adjustSettings(current);
@@ -227,7 +241,7 @@ void imagingMode() {
       conjuringMode(current.numPhotos);
       break;
     case GATHERING:
-      gatheringMode(counter, current.layerVal, current.numPhotos, lightVal, current.sleepPeriod);
+      gatheringMode(counter, current.layerVal, current.numPhotos, lightVal, current.sleepPeriod, numSinceUpload);
       break;
     case TEXTURING:
       texturingMode(current.numPhotos, current.numCamera);
@@ -253,28 +267,52 @@ void uploadMode() {
   int numSinceUpload = preferences.getInt("sinceUpload", 0);
   Serial.print("num since upload is: ");
   Serial.println(numSinceUpload);
-  int numLayers = preferences.getInt("layerVal", 5);
+  int numLayers = preferences.getInt("layerVal", 3);
   Serial.print("num layers are: ");
   Serial.println(numLayers);
   int counter = preferences.getInt("counter", 5);
   Serial.print("the counter is: ");
   Serial.println(counter);
-
+  String mode = preferences.getString("imagingMode", "reference");
+  Serial.print("the imaging mode is: ");
+  Serial.println(mode);
   for (int i = 0; i < numLayers; i++) {
-    String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
-    Fe_cam::SD_to_SPIFFS(temp_photo);
-    Fe_Firebase::uploadFromSPIFFS(temp_photo);
-    Fe_cam::removePhoto(temp_photo);
+    for(int j = 1; j < counter+1; j++){
+        // String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
+        String temp_photo = "/" + mode + "/" + String(numSinceUpload) + "/" + String(j) + "-" + String(i) + ".jpg";  
+        Serial.print("the current photo is: ");
+        Serial.println(temp_photo);
+        Fe_cam::SD_to_SPIFFS(temp_photo);
+        Fe_Firebase::uploadFromSPIFFS(temp_photo);
+        Fe_cam::removePhoto(temp_photo);
+    }
   }
-  int sleepPeriod = preferences.getInt("sleepPeriod", 5000);
+  int sleepPeriod_i = preferences.getInt("sleepPeriod", 5000);
   numSinceUpload ++;
+  counter = 0;
+  preferences.putInt("counter", counter);
   preferences.putInt("sinceUpload", numSinceUpload);
+  preferences.putString("state", "settings");
   preferences.end(); 
-  float time_to_sleep = sleepPeriod / 1000;  // is float ok here?
+  Fe_Firebase::writeVal("read", 0);
+  currentState = SETTINGS_MODE;
+  float time_to_sleep = sleepPeriod_i / 1000;  // is float ok here?
+  esp_sleep_enable_timer_wakeup(time_to_sleep * uS_TO_S_FACTOR);
+  
+}
+
+void deepSleep(int sleep_period) {
+  float time_to_sleep = sleep_period / 1000;  // is float ok here?
   esp_sleep_enable_timer_wakeup(time_to_sleep * uS_TO_S_FACTOR);
 }
 
-void deepSleep() {
+void reset(){
+  preferences.begin("solar-cam", false);
+  preferences.putInt("sinceUpload", 0);
+  preferences.putString("state", "settings");
+  preferences.putInt("counter", 0);
+  preferences.end();
+  deepSleep(5);
 }
 
 void setup() {
@@ -283,14 +321,19 @@ void setup() {
   Serial.println("In Setup");
 
   // !!! check battery level !!!
-
+ff
   preferences.begin("solar-cam", false);
   // Get the counter value, if the key does not exist, return a default value of SETTINGS_MODE
   // Note: Key name is limited to 15 chars.
   String state = preferences.getString("state", "settings"); // this is overall state not imaging mode! differentiate!
-  // state = "settings";
-  // preferences.putString("mode", state);
-  Serial.print("the current mode is: ");
+  sleepPeriod = preferences.getInt("sleepPeriod", 5000);
+  Serial.print("the sleep period is: ");
+  Serial.println(sleepPeriod);
+  // preferences.putInt("sinceUpload", 0);
+  // state = "settings"; // use this line and the one below to reset the camera
+  // preferences.putString("state", "settings");
+
+  Serial.print("the current state is: ");
   Serial.println(state);
   if (state == "settings") {
     currentState = SETTINGS_MODE;
@@ -306,6 +349,7 @@ void setup() {
   // currentState = SETTINGS_MODE;
   preferences.end();  // Close the Preferences
   // if (currentState == SETTINGS_MODE || currentState == UPLOAD_MODE) {
+    delay(1000);
     Fe_Wifi::initWiFi();
     Serial.println("Wifi initialized");
     Fe_Firebase::initialize();
@@ -318,6 +362,7 @@ void setup() {
   // Serial.println("Spiffs initialized");
   Fe_cam::initSD();
   Serial.println("Spiffs initialized");
+  // if mode is imageing mode
   Fe_cam::stopBrownout();
   Fe_cam::initCamera();
   Serial.println("Camera Initialised");
@@ -339,7 +384,7 @@ void loop() {
       uploadMode();
       break;
     case DEEP_SLEEP_MODE:
-      deepSleep();
+      deepSleep(sleepPeriod);
       break;
   }
 }

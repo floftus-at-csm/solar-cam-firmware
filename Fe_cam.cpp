@@ -132,7 +132,8 @@ void gatherPhotoSaveSD(String FILE_PHOTO) {
     Serial.print("Picture file name: ");
     Serial.println(FILE_PHOTO);
     // SPIFFS.remove(FILE_PHOTO);
-    File file = fs.open(FILE_PHOTO.c_str(), FILE_WRITE);                                  // create file on sd card
+    // File file = fs.open(FILE_PHOTO.c_str(), FILE_WRITE);                                  // create file on sd card
+    File file = fs.open(FILE_PHOTO.c_str(), FILE_APPEND);                                  // create file on sd card
     // Insert the data in the photo file
     if (!file) {
       Serial.println("Failed to open file in writing mode");
@@ -194,8 +195,10 @@ void SD_to_SPIFFS(String FILE_PHOTO){
   File source_file = fs.open(FILE_PHOTO.c_str(), FILE_READ);
   File SPIFFS_file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);
   static uint8_t buf[512];
+// Serialprintln(source_file) - check source file size??  
   while( source_file.read( buf, 512) ) {
       SPIFFS_file.write( buf, 512 );
+      // maybe count up and if this gets stuck stop - count buffer size?
       // Serial.println("writing to spiffs");
   }
   Serial.println("converted file");
@@ -491,7 +494,7 @@ void expAdjustExposure(int light, int numLoops){
 }
 
 
-void gatheringLoop(int currentNum){
+void gatheringLoop(int currentNum, int numPhotos){
   int light = 0;
   sensor_t* s = esp_camera_sensor_get();
   // potentially invert hex order
@@ -501,12 +504,11 @@ void gatheringLoop(int currentNum){
   int exp_ctrl[] = {0, 0, 1};
   // int gain_tester[] = {0, 15, 30};
   // int aec[] = {400, 600, 1200};
-  // int contrasts[] = {2, 0, -2};
-  int contrast = map(currentNum, 0, currentNum, -2, 2);
+  int contrasts[] = {2, 0, -2};
   // int wb_mode[] = {0, 2, 4};
     s->set_brightness(s, 0);  // -2 to 2
   // s->set_brightness(s, 2);  // -2 to 2
-  s->set_contrast(s, contrast);                    // -2 to 2
+  s->set_contrast(s, contrasts[currentNum]);                    // -2 to 2
   s->set_saturation(s, 0);                  // -2 to 2
   s->set_special_effect(s, 0);              // 0 to 6 (0 - No Effect, 1 - Negative, 2 - Grayscale, 3 - Red Tint, 4 - Green Tint, 5 - Blue Tint, 6 - Sepia)
   s->set_whitebal(s, 1);                    // 0 = disable , 1 = enable
@@ -537,10 +539,10 @@ void gatheringLoop(int currentNum){
   s->set_reg(s,0x47,0xff,0x0);//Frame Length Adjustment MSBs  
 
   // s->set_reg(s, 0x46, 0xff, 0xd0);//Frame Length Adjustment LSBs  - start with this consistent to see whats happening
-  // s->set_reg(s, 0x46, 0xff, hexArray[currentNum]);
+  s->set_reg(s, 0x46, 0xff, hexArray[currentNum]);
   s->set_reg(s, 0x2a, 0xff, 0xff);//line adjust MSB - start with this as consistent so I can see whats happening
   s->set_reg(s, 0x2b, 0xff, 0xff); //line adjust
-  // s->set_reg(s, 0x45, 0xff, hexArray2[currentNum]); //exposure (doesn't seem to work) 
+  s->set_reg(s, 0x45, 0xff, hexArray2[currentNum]); //exposure (doesn't seem to work) 
   s->set_reg(s,0x11,0xff,1);//frame rate (1 means longer exposure)
 
   // potentially change set_aec_value(s, 400) and 
