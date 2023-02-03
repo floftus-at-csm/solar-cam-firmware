@@ -11,7 +11,8 @@ enum { NETWORK_SEARCH,
        SETTINGS_MODE,
        IMAGING_MODE,
        UPLOAD_MODE,
-       DEEP_SLEEP_MODE } currentState;
+       DEEP_SLEEP_MODE,
+       RESET } currentState;
 enum { CONJURING,
        GATHERING,
        TEXTURING,
@@ -70,19 +71,22 @@ void gatheringMode(int counter, int numLayers, int numPhotos, int light, int sle
     preferences.putInt("counter", counter);
     currentState = UPLOAD_MODE;
     preferences.putString("state", "upload");
+    int numSinceUpload = preferences.getInt("sinceUpload", 0);
+    numSinceUpload++;
+    preferences.putInt("sinceUpload", numSinceUpload);
   }
+  int sleepPeriod_i = preferences.getInt("sleepPeriod", 5000);
   preferences.end();  // Close the Preferences
   // internet disconnect
   // firebase disconnect
   // deep sleep x amount of times - what happens when it turns on again? - I need a preferences file - currentState = IMAGING, currentMode = gathering,
   // }
-  int sleepPeriod_i = preferences.getInt("sleepPeriod", 5000);
+  
   float time_to_sleep = sleepPeriod_i / 1000;  // is float ok here?
   esp_sleep_enable_timer_wakeup(time_to_sleep * uS_TO_S_FACTOR);
   // esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
-  Serial.println("Setup ESP32 to sleep for every " + String(time_to_sleep) +
-  " Seconds");
-  Serial.flush(); 
+  Serial.println("Setup ESP32 to sleep for every " + String(time_to_sleep) + " Seconds");
+  Serial.flush();
   esp_deep_sleep_start();
   // change current file names
 }
@@ -113,10 +117,10 @@ void testMode(int counter, int numLayers, int numPhotos, int light, int sleepPer
     preferences.putInt("counter", counter);
     preferences.end();  // Close the Preferences
   } else {
-    counter = 0;                              // I think reset counter in upload mode
+    counter = 0;  // I think reset counter in upload mode
     preferences.begin("solar-cam", false);
     preferences.putInt("counter", counter);  // move this
-    preferences.putString("mode", "upload");   
+    preferences.putString("mode", "upload");
     preferences.end();  // Close the Preferences
     // currentState = UPLOAD_MODE;
     // write current state to preferences then go to sleep
@@ -135,7 +139,7 @@ void texturingMode(int num, int cams) {
 }
 
 void referenceMode(Fe_Firebase::settingsInput currentSettings) {
-  for(int i=0; i<currentSettings.numPhotos; i++){
+  for (int i = 0; i < currentSettings.numPhotos; i++) {
     String temp_photo = "/data/photo" + String(i) + ".jpg";
     Fe_cam::gatheringLoop(i, currentSettings.numPhotos);
     // Fe_cam::testingAdjustExposure(i, currentSettings);
@@ -147,7 +151,6 @@ void referenceMode(Fe_Firebase::settingsInput currentSettings) {
     Fe_Firebase::writeVal("read", 0);
     currentState = SETTINGS_MODE;
   }
-
 }
 // void referenceMode() {
 //   String temp_photo = "/data/photo.jpg";
@@ -167,37 +170,6 @@ void networkSearch() {
 }
 
 
-void settingsMode() {
-  Serial.println("=== in settings loop ===");
-  delay(3000);
-  read_val = Fe_Firebase::checkIntVal("read");
-  Serial.print("the read val is: ");
-  Serial.println(read_val);
-  if (read_val == 1) {
-    currentSettings = Fe_Firebase::getSettings();
-    Serial.println(currentSettings.brightness);
-    Fe_cam::adjustSettings(currentSettings);
-    String tempCurrentMode = currentSettings.mode;
-    Serial.print("the image mode is: ");
-    Serial.println(currentSettings.mode);
-
-    preferences.begin("solar-cam", false);
-    preferences.putInt("brightness", currentSettings.brightness);
-    preferences.putInt("saturation", currentSettings.saturation);
-    preferences.putInt("aec", currentSettings.autoExposureControl);
-    preferences.putInt("wb", currentSettings.whiteBalance);
-    preferences.putString("imagingMode", currentSettings.mode);
-    preferences.putInt("numPhotos", currentSettings.numPhotos);
-    preferences.putInt("numCams", currentSettings.numCamera);
-    preferences.putInt("layerVal", currentSettings.layerVal);
-    preferences.putString("auto", currentSettings.autoMode);
-    preferences.putInt("sleepPeriod", currentSettings.sleepPeriod);
-    preferences.end();
-    currentState = IMAGING_MODE;
-  } else {
-    delay(2000);
-  }
-}
 
 void imagingMode() {
   Serial.println("=== in imaging mode ===");
@@ -276,29 +248,35 @@ void uploadMode() {
   String mode = preferences.getString("imagingMode", "reference");
   Serial.print("the imaging mode is: ");
   Serial.println(mode);
+  String temp_photo = "";
   for (int i = 0; i < numLayers; i++) {
-    for(int j = 1; j < counter+1; j++){
-        // String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
-        String temp_photo = "/" + mode + "/" + String(numSinceUpload) + "/" + String(j) + "-" + String(i) + ".jpg";  
-        Serial.print("the current photo is: ");
-        Serial.println(temp_photo);
-        Fe_cam::SD_to_SPIFFS(temp_photo);
+    for (int j = 1; j < counter + 1; j++) {
+      // String temp_photo = "/test/" + String(numSinceUpload) + "/" + String(counter) + "/" + String(i) + ".jpg";
+      temp_photo = "/" + mode + "/" + String(numSinceUpload - 1) + "_" + String(j) + "-" + String(i) + ".jpg";
+      Serial.print("the current photo is: ");
+      Serial.println(temp_photo);
+      bool exists = Fe_cam::SD_to_SPIFFS(temp_photo);  // check if file exists
+      if (exists) {
+        // temp_photo = "/" + mode + "/" + String(numSinceUpload - 1) + "/" + String(j) + "-" + String(i) + ".jpg";
         Fe_Firebase::uploadFromSPIFFS(temp_photo);
+        // temp_photo = "/" + mode + "/" + String(numSinceUpload - 1) + "_" + String(j) + "-" + String(i) + ".jpg";
         Fe_cam::removePhoto(temp_photo);
+        
+      }
+      Fe_cam::wipeSPIFFS();
     }
   }
   int sleepPeriod_i = preferences.getInt("sleepPeriod", 5000);
-  numSinceUpload ++;
+
   counter = 0;
   preferences.putInt("counter", counter);
   preferences.putInt("sinceUpload", numSinceUpload);
   preferences.putString("state", "settings");
-  preferences.end(); 
+  preferences.end();
   Fe_Firebase::writeVal("read", 0);
   currentState = SETTINGS_MODE;
   float time_to_sleep = sleepPeriod_i / 1000;  // is float ok here?
   esp_sleep_enable_timer_wakeup(time_to_sleep * uS_TO_S_FACTOR);
-  
 }
 
 void deepSleep(int sleep_period) {
@@ -306,7 +284,7 @@ void deepSleep(int sleep_period) {
   esp_sleep_enable_timer_wakeup(time_to_sleep * uS_TO_S_FACTOR);
 }
 
-void reset(){
+void reset() {
   preferences.begin("solar-cam", false);
   preferences.putInt("sinceUpload", 0);
   preferences.putString("state", "settings");
@@ -315,20 +293,58 @@ void reset(){
   deepSleep(5);
 }
 
+void settingsMode() {
+  Serial.println("=== in settings loop ===");
+  delay(3000);
+  read_val = Fe_Firebase::checkIntVal("read");
+  Serial.print("the read val is: ");
+  Serial.println(read_val);
+  if (read_val == 1) {
+    currentSettings = Fe_Firebase::getSettings();
+    Serial.println(currentSettings.brightness);
+    Fe_cam::adjustSettings(currentSettings);
+    String tempCurrentMode = currentSettings.mode;
+    Serial.print("the image mode is: ");
+    Serial.println(currentSettings.mode);
+
+    preferences.begin("solar-cam", false);
+    preferences.putInt("brightness", currentSettings.brightness);
+    preferences.putInt("saturation", currentSettings.saturation);
+    preferences.putInt("aec", currentSettings.autoExposureControl);
+    preferences.putInt("wb", currentSettings.whiteBalance);
+    preferences.putString("imagingMode", currentSettings.mode);
+    preferences.putInt("numPhotos", currentSettings.numPhotos);
+    preferences.putInt("numCams", currentSettings.numCamera);
+    preferences.putInt("layerVal", currentSettings.layerVal);
+    preferences.putString("auto", currentSettings.autoMode);
+    preferences.putInt("sleepPeriod", currentSettings.sleepPeriod);
+    preferences.end();
+    if(currentSettings.mode == "reset"){
+      currentState = RESET;
+    }else{
+      currentState = IMAGING_MODE;
+    }
+    
+  } else {
+    delay(2000);
+  }
+}
+
 void setup() {
   // Serial port for debugging purposes
   Serial.begin(115200);
   Serial.println("In Setup");
 
   // !!! check battery level !!!
-ff
   preferences.begin("solar-cam", false);
   // Get the counter value, if the key does not exist, return a default value of SETTINGS_MODE
   // Note: Key name is limited to 15 chars.
-  String state = preferences.getString("state", "settings"); // this is overall state not imaging mode! differentiate!
+  String state = preferences.getString("state", "settings");  // this is overall state not imaging mode! differentiate!
   sleepPeriod = preferences.getInt("sleepPeriod", 5000);
   Serial.print("the sleep period is: ");
   Serial.println(sleepPeriod);
+
+  // preferences.putInt("counter", 0);
   // preferences.putInt("sinceUpload", 0);
   // state = "settings"; // use this line and the one below to reset the camera
   // preferences.putString("state", "settings");
@@ -348,15 +364,15 @@ ff
   }
   // currentState = SETTINGS_MODE;
   preferences.end();  // Close the Preferences
-  // if (currentState == SETTINGS_MODE || currentState == UPLOAD_MODE) {
-    delay(1000);
-    Fe_Wifi::initWiFi();
-    Serial.println("Wifi initialized");
-    Fe_Firebase::initialize();
-    Serial.println("firebase initialized");
-    // what about if this fails? either turn of or go to imaging mode
-    // I need a method for checking if initWiFi succeeds or fails
-    // if unsuccessful then increment the number of loops since upload, check battery levels and then either restart the loop again or switch off for a while
+                      // if (currentState == SETTINGS_MODE || currentState == UPLOAD_MODE) {
+  delay(1000);
+  Fe_Wifi::initWiFi();
+  Serial.println("Wifi initialized");
+  Fe_Firebase::initialize();
+  Serial.println("firebase initialized");
+  // what about if this fails? either turn of or go to imaging mode
+  // I need a method for checking if initWiFi succeeds or fails
+  // if unsuccessful then increment the number of loops since upload, check battery levels and then either restart the loop again or switch off for a while
   // }
   Fe_cam::initSPIFFS();
   // Serial.println("Spiffs initialized");
@@ -385,6 +401,9 @@ void loop() {
       break;
     case DEEP_SLEEP_MODE:
       deepSleep(sleepPeriod);
+      break;
+    case RESET:
+      reset();
       break;
   }
 }

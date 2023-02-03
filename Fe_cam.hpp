@@ -9,10 +9,10 @@
 #include "driver/rtc_io.h"
 #include <SPIFFS.h>
 #include "Fe_Firebase.hpp"
-#include "SD_MMC.h"                         // sd card - see https://randomnerdtutorials.com/esp32-cam-take-photo-save-microsd-card/
+#include "SD_MMC.h"  // sd card - see https://randomnerdtutorials.com/esp32-cam-take-photo-save-microsd-card/
 #include <SPI.h>
-#include <FS.h>                             // gives file access
-#define SD_CS 5                             // sd chip select pin = 5
+#include <FS.h>  // gives file access
+#define SD_CS 5  // sd chip select pin = 5
 
 /// The display module to control the attached LEDs
 
@@ -32,7 +32,9 @@ void initSD();
 
 void uploadImage(String FILE_PHOTO);
 
-void SD_to_SPIFFS(String FILE_PHOTO);
+bool SD_to_SPIFFS(String FILE_PHOTO);
+
+void wipeSPIFFS();
 
 void removePhoto(String FILE_PHOTO);
 
@@ -51,4 +53,4 @@ void standardAdjustExposure(int light);
 void expAdjustExpossure(int light, int numLoops);
 
 int testingAdjustExposure(int currentNum, Fe_Firebase::settingsInput currentSettings);
-  }
+}
