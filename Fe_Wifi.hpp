@@ -5,7 +5,7 @@
 
 namespace Fe_Wifi{
 
-void initWiFi();
+bool initWiFi();
 
 void turnOffWifi();
 

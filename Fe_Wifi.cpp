@@ -5,13 +5,23 @@ namespace Fe_Wifi {
 const char* ssid = secrets::secret_ssid;
 const char* password = secrets::secret_password;
 
-void initWiFi() {
+bool initWiFi() {
+  int counter = 0;
+  bool connected = true;
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
+    counter ++;
+    Serial.print("the counter is: ");
+    Serial.println(counter);
+    if(counter >= 7){
+      connected = false;
+      break;
+    }
   }
   // WiFi.persistent();  // stops ssid being written to flash - currently throwing an error
+  return connected;
 }
 
 void turnOffWifi() {

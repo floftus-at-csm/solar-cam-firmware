@@ -241,7 +241,7 @@ void uploadImage(String FILE_PHOTO) {
   Fe_Firebase::uploadFromSD(FILE_PHOTO);
 }
 
-void initCamera() {
+void initCamera(String sensor_name, framesize_t frame_size) {
   // OV2640 camera module
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -269,7 +269,7 @@ void initCamera() {
 
   if (psramFound()) {
     Serial.println("psram found");
-    config.frame_size = FRAMESIZE_UXGA;
+    config.frame_size = frame_size;
     config.jpeg_quality = 3;  //0-63 lower number means higher quality - it was at 12
     config.fb_count = 3;
   } else {
@@ -286,7 +286,7 @@ void initCamera() {
   }
 }
 
-void resetCamera(bool type = 0) {
+void resetCamera(bool type, String sensor_name, framesize_t frame_size) {
   // 1 = hardware reset - 0 = software reset
   if (type == 1) {
     // power cycle the camera module (handy if camera stops responding)
@@ -294,12 +294,12 @@ void resetCamera(bool type = 0) {
     delay(300);
     digitalWrite(PWDN_GPIO_NUM, LOW);
     delay(300);
-    initCamera();
+    initCamera(sensor_name, frame_size);
   } else {
     // reset via software (handy if you wish to change resolution or image type etc. - see test procedure)
     esp_camera_deinit();
     delay(50);
-    initCamera();
+    initCamera(sensor_name, frame_size);
   }
 }
 

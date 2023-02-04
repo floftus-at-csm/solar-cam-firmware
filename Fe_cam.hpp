@@ -38,9 +38,9 @@ void wipeSPIFFS();
 
 void removePhoto(String FILE_PHOTO);
 
-void initCamera();
+void initCamera(String sensor_name = "OV2640", framesize_t frame_size = FRAMESIZE_UXGA);
 
-void resetCamera(bool type);
+void resetCamera(bool type=0, String sensor_name = "OV2640", framesize_t frame_size = FRAMESIZE_UXGA);
 
 void stopBrownout();
 
