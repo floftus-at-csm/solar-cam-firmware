@@ -115,7 +115,7 @@ There is potential to ‘upgrade’ to a ESP32 board that uses the OV5640 sensor
 
 
 ##### Comparison 1: Canon 800D
-6000 x 400 px
+6000 x 4000 px
 
 ##### Comparison 2: Iphone 11
 4000 x 3000 px 
