@@ -22,7 +22,7 @@ Camera:
 * Micro SD Card
 * 5V 1W Solar Panel
 * Rechargeable 3.7V Li-ion Battery 3000mAh
-* Battery level circuit
+* Battery monitoring circuit
 * 3D Printed Parts
   * Lens holder
   * Internal housing
