@@ -26,7 +26,7 @@ String FILE_PHOTO_NEW = "/data/photo.jpg";
 String sensor_name = "OV5640";  // OV5640, OV2640
 // image sizes (4:3)
 framesize_t OV2640_imSizes_4_3[7] = { FRAMESIZE_QQVGA, FRAMESIZE_HQVGA, FRAMESIZE_QVGA, FRAMESIZE_CIF, FRAMESIZE_SVGA, FRAMESIZE_XGA, FRAMESIZE_UXGA };
-framesize_t OV5640_imSizes_4_3[9] = { FRAMESIZE_QQVGA, FRAMESIZE_HQVGA, FRAMESIZE_QVGA, FRAMESIZE_CIF, FRAMESIZE_SVGA, FRAMESIZE_XGA, FRAMESIZE_UXGA, FRAMESIZE_QXGA, FRAMESIZE_QSXGA };
+framesize_t OV5640_imSizes_4_3[9] = { FRAMESIZE_QQVGA, FRAMESIZE_HQVGA, FRAMESIZE_QVGA, FRAMESIZE_CIF, FRAMESIZE_SVGA, FRAMESIZE_XGA, FRAMESIZE_UXGA, FRAMESIZE_QXGA, FRAMESIZE_QSXGA }; // FRAMESIZE_QXGA and FRAMESIZE_QsXGA are in wrong order to test
 
 String currentFileNames[100];  // this might be too big - I need a way to keep track of memory usage
 boolean takeNewPhoto = true;
@@ -237,20 +237,27 @@ void imagingMode() {
   Serial.print("counter is: ");
   Serial.println(counter);
   if (current.mode == "squeezing") {
-    if (counter <= 3) {
+    // if (counter <= 3) {
+      if(debug)Serial.print("the sensor name is: ");
+      if(debug)Serial.println(sensor_name);
       if (sensor_name == "OV5640") {
         // map counter between 0 and size of array - use counter modulo numLayers
-        Fe_cam::initCamera(sensor_name, OV5640_imSizes_4_3[counter * 3]);
+        if(debug)Serial.print("the image size is: ");
+        if(debug)Serial.println(OV5640_imSizes_4_3[(counter%3) * 3]);
+        Fe_cam::initCamera(sensor_name, OV5640_imSizes_4_3[(counter%3) * 3]);
       } else if (sensor_name == "OV2640") {
-        Fe_cam::initCamera(sensor_name, OV2640_imSizes_4_3[(counter * 2) + 1]);
+        Fe_cam::initCamera(sensor_name, OV2640_imSizes_4_3[((counter%3) * 2) + 1]);
+        if(debug)Serial.print("the image size is: ");
+        if(debug)Serial.println(OV2640_imSizes_4_3[((counter%3) * 2) + 1]);
       }
-    } else {
-      if (sensor_name == "OV5640") {
-        Fe_cam::initCamera(sensor_name, OV5640_imSizes_4_3[9]);
-      } else if (sensor_name == "OV2640") {
-        Fe_cam::initCamera(sensor_name, OV2640_imSizes_4_3[7]);
-      }
-    }
+    // } 
+    // else {
+    //   if (sensor_name == "OV5640") {
+    //     Fe_cam::initCamera(sensor_name, OV5640_imSizes_4_3[9]);
+    //   } else if (sensor_name == "OV2640") {
+    //     Fe_cam::initCamera(sensor_name, OV2640_imSizes_4_3[7]);
+    //   }
+    // }
   } else if (current.mode == "gathering") {
     Fe_cam::initCamera(sensor_name, OV5640_imSizes_4_3[random(9)]);
   } else {
@@ -452,9 +459,9 @@ void setup() {
                       // if (currentState == SETTINGS_MODE || currentState == UPLOAD_MODE) {
   delay(1000);
   wifi_connected = Fe_Wifi::initWiFi();
-  if (debug) Serial.println("Wifi initialized");
+  if(wifi_connected && debug) Serial.println("Wifi initialized");
   if (wifi_connected) Fe_Firebase::initialize();
-  if (debug) Serial.println("firebase initialized");
+  if (wifi_connected &&debug) Serial.println("firebase initialized");
   // what about if this fails? either turn of or go to imaging mode
   // I need a method for checking if initWiFi succeeds or fails
   // if unsuccessful then increment the number of loops since upload, check battery levels and then either restart the loop again or switch off for a while
