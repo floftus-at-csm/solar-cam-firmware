@@ -22,7 +22,7 @@ Camera:
 * Micro SD Card
 * 5V 1W Solar Panel
 * Rechargeable 3.7V Li-ion Battery 3000mAh
-* Battery level circuit
+* Battery monitoring circuit
 * 3D Printed Parts
   * Lens holder
   * Internal housing
@@ -115,7 +115,7 @@ There is potential to ‘upgrade’ to a ESP32 board that uses the OV5640 sensor
 
 
 ##### Comparison 1: Canon 800D
-6000 x 400 px
+6000 x 4000 px
 
 ##### Comparison 2: Iphone 11
 4000 x 3000 px 
